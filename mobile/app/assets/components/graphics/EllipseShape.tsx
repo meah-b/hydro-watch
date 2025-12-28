@@ -1,3 +1,4 @@
+import colors from '@/app/config/theme';
 import React from 'react';
 import { Dimensions } from 'react-native';
 import Svg, { Ellipse } from 'react-native-svg';
@@ -17,7 +18,7 @@ export const TopEllipse = () => {
 				cy={200}
 				rx={288.5}
 				ry={200}
-				fill='#33ABE6'
+				fill={colors.blue200}
 				opacity={0.38}
 			/>
 		</Svg>
@@ -35,7 +36,7 @@ export const BottomEllipse = () => {
 				cy={210}
 				rx={284}
 				ry={210}
-				fill='#33ABE6'
+				fill={colors.blue200}
 				opacity={0.35}
 			/>
 		</Svg>
