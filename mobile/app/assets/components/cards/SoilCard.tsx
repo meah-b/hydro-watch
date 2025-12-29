@@ -36,11 +36,16 @@ const styles = StyleSheet.create({
 	background: {
 		...StyleSheet.absoluteFillObject,
 		backgroundColor: colors.white,
-		opacity: 0.75,
 		borderRadius: 15,
+		shadowColor: colors.black,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.15,
+		shadowRadius: 5,
+		elevation: 5,
 	},
 	backgroundPressed: {
-		opacity: 0.45,
+		shadowOpacity: 0.3,
+		elevation: 8,
 	},
 	content: {
 		flex: 1,
@@ -57,18 +62,12 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 	},
 	value: {
-		fontSize: 22,
+		fontSize: 20,
 		fontFamily: 'jost',
 		color: colors.black,
 	},
 	wrapper: {
 		width: SCREEN_WIDTH * 0.436,
 		height: 120,
-		borderRadius: 15,
-		shadowColor: colors.black,
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.15,
-		shadowRadius: 5,
-		elevation: 5,
 	},
 });

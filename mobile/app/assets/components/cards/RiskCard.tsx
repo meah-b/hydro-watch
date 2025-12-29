@@ -1,22 +1,29 @@
+import { router } from 'expo-router';
 import React from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-
 import colors from '../../../config/theme';
 import { Exclamation } from '../graphics/Icons';
 
 interface Props {
-	title: string;
 	value: string;
+	desc?: string;
+	title?: string;
+	isCurrent?: boolean;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export default function RiskCard(props: Props) {
+export function CurrentRiskCard(props: Props) {
 	const { title, value } = props;
 	return (
 		<Pressable
-			style={styles.wrapper}
-			onPress={() => {}}>
+			style={styles.currentWrapper}
+			onPress={() =>
+				router.push({
+					pathname: '/(tabs)/risk-levels',
+					params: { level: value },
+				})
+			}>
 			{({ pressed }) => (
 				<>
 					<View
@@ -24,11 +31,10 @@ export default function RiskCard(props: Props) {
 					/>
 
 					<View style={styles.row}>
-						<View style={{ flexDirection: 'row' }}>
+						<View style={{ flexDirection: 'row', alignItems: 'center' }}>
 							<Text style={styles.title}>{title}: </Text>
 							<Text style={styles.value}>{value}</Text>
 						</View>
-
 						<Exclamation color={colors.yellow} />
 					</View>
 				</>
@@ -37,15 +43,30 @@ export default function RiskCard(props: Props) {
 	);
 }
 
+export function RiskInfoCard(props: Props) {
+	const { value, desc } = props;
+	return (
+		<View style={styles.infoWrapper}>
+			<Text style={styles.title}>{value}</Text>
+			<Text style={styles.desc}>{desc}</Text>
+		</View>
+	);
+}
+
 const styles = StyleSheet.create({
 	background: {
 		...StyleSheet.absoluteFillObject,
 		backgroundColor: colors.white,
-		opacity: 0.75,
 		borderRadius: 15,
+		shadowColor: colors.black,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.15,
+		shadowRadius: 5,
+		elevation: 5,
 	},
 	backgroundPressed: {
-		opacity: 0.45,
+		shadowOpacity: 0.3,
+		elevation: 8,
 	},
 	row: {
 		flex: 1,
@@ -59,24 +80,29 @@ const styles = StyleSheet.create({
 		fontWeight: 'bold',
 		fontFamily: 'jost',
 		color: colors.black,
-		paddingLeft: 5,
 	},
 	icon: {
 		position: 'fixed',
 	},
 	value: {
-		fontSize: 22,
+		fontSize: 20,
 		fontFamily: 'jost',
 		color: colors.black,
 	},
-	wrapper: {
+	desc: {
+		fontSize: 18,
+		fontFamily: 'jost',
+		color: colors.black,
+		marginTop: 5,
+	},
+	currentWrapper: {
 		width: SCREEN_WIDTH * 0.9,
 		height: 75,
-		borderRadius: 15,
-		shadowColor: colors.black,
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.15,
-		shadowRadius: 5,
-		elevation: 5,
+	},
+	infoWrapper: {
+		backgroundColor: colors.white,
+		width: SCREEN_WIDTH * 0.82,
+		height: 357,
+		padding: 15,
 	},
 });
