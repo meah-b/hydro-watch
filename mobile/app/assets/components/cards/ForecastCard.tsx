@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import colors from '../../../config/theme';
-import PrecipChart from '../graphics/PrecipChart';
+import PrecipChart from '../utilities/PrecipChart';
 
 export default function ForecastCard() {
 	const values = [
@@ -43,10 +43,16 @@ const styles = StyleSheet.create({
 		shadowRadius: 5,
 		elevation: 5,
 	},
+
 	chartClip: {
 		width: '100%',
 		overflow: 'hidden',
 		marginLeft: -5,
 	},
-	cardTitle: { fontSize: 14, fontWeight: '600', opacity: 0.9 },
+
+	cardTitle: {
+		fontSize: 14,
+		fontWeight: '600',
+		opacity: 0.9,
+	},
 });

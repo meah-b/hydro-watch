@@ -1,23 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import AppHeader from '../assets/components/utilities/Header';
 import colors from '../config/theme';
 
 export default function TabsLayout() {
 	return (
 		<Tabs
 			screenOptions={{
-				animation: 'fade',
-				headerShown: false,
+				animation: 'shift',
+				headerShown: true,
+				header: () => (
+					<AppHeader
+						onPressNotifications={() => {}}
+						onPressMenu={() => {}}
+					/>
+				),
+				headerTransparent: true,
+				headerShadowVisible: false,
 				tabBarShowLabel: true,
-				tabBarActiveTintColor: colors.blue300,
-				tabBarInactiveTintColor: colors.blue300,
+				tabBarActiveTintColor: colors.black,
+				tabBarInactiveTintColor: colors.black,
 				tabBarStyle: {
-					height: 75,
+					height: 80,
 					paddingTop: 8,
 					paddingBottom: 12,
-					borderTopLeftRadius: 30,
-					borderTopRightRadius: 30,
 					position: 'absolute',
 					left: 10,
 					right: 10,
@@ -26,7 +33,7 @@ export default function TabsLayout() {
 					borderTopWidth: 0,
 					shadowColor: colors.black,
 					shadowOffset: { width: 0, height: 8 },
-					shadowOpacity: 0.12,
+					shadowOpacity: 0.2,
 					shadowRadius: 12,
 					elevation: 12,
 				},

@@ -1,5 +1,13 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import {
+	Dimensions,
+	Linking,
+	Pressable,
+	StyleSheet,
+	Text,
+	View,
+} from 'react-native';
 import colors from '../../../config/theme';
 
 interface MetricCardProps {
@@ -29,12 +37,33 @@ export default function SmallMetricCard(props: MetricCardProps) {
 }
 
 export function MediumMetricCard(props: MetricCardProps) {
-	const { title, value, desc } = props;
+	const { title, value, desc, isWarning } = props;
+
+	const handlePress = () => {
+		Linking.openURL('https://weather.gc.ca/warnings');
+	};
 
 	return (
-		<View style={[styles.card, props.isWarning ? styles.warningCard : null]}>
+		<View style={[styles.card, isWarning ? styles.warningCard : null]}>
 			<Text style={styles.cardTitle}>{title}</Text>
-			<Text style={styles.actionPrimary}>{value}</Text>
+
+			{isWarning ? (
+				<Pressable
+					onPress={handlePress}
+					style={({ pressed }) => [
+						styles.linkWrapper,
+						{ opacity: pressed ? 0.6 : 1 },
+					]}>
+					<Text style={[styles.actionPrimary, styles.actionLink]}>{value}</Text>
+					<Ionicons
+						name='open-outline'
+						size={20}
+					/>
+				</Pressable>
+			) : (
+				<Text style={styles.actionPrimary}>{value}</Text>
+			)}
+
 			<Text style={styles.mutedDesc}>{desc}</Text>
 		</View>
 	);
@@ -64,10 +93,15 @@ export function RiskLevelCard(props: RiskLevelCardProps) {
 }
 
 const styles = StyleSheet.create({
+	actionLink: {
+		textDecorationLine: 'underline',
+	},
+
 	actionPrimary: {
 		fontSize: 16,
 		fontWeight: '700',
 	},
+
 	card: {
 		flex: 1,
 		borderRadius: 16,
@@ -80,51 +114,68 @@ const styles = StyleSheet.create({
 		shadowRadius: 5,
 		elevation: 5,
 	},
+
 	cardDesc: {
 		fontSize: 14,
 		fontWeight: '500',
 	},
+
 	cardLabel: {
 		fontSize: 13,
 		fontWeight: '600',
 		opacity: 0.8,
 	},
+
 	cardTitle: {
 		fontSize: 14,
 		fontWeight: '600',
 		opacity: 0.9,
 	},
+
 	desc: {
 		fontSize: 18,
 		fontFamily: 'jost',
 		color: colors.blue300,
 		marginTop: 5,
 	},
+
 	heroValue: {
 		fontSize: 28,
 		fontWeight: '800',
 		letterSpacing: 0.5,
 	},
+
+	linkWrapper: {
+		alignSelf: 'flex-start',
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 4,
+	},
+
 	metricValue: {
 		fontSize: 20,
 		fontWeight: '700',
 	},
+
 	mutedDesc: {
 		fontSize: 13,
 		opacity: 0.75,
 	},
+
 	infoCard: {
 		backgroundColor: colors.white,
 		width: SCREEN_WIDTH * 0.82,
 		height: 357,
 		padding: 15,
 	},
+
 	infoCardTitle: {
 		fontSize: 22,
 		fontWeight: 'bold',
 		fontFamily: 'jost',
 		color: colors.blue300,
 	},
+
 	warningCard: {
 		backgroundColor: colors.red100,
 	},
