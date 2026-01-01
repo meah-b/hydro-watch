@@ -1,124 +1,168 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import ForecastCard from '../assets/components/cards/ForecastCard';
-import { CurrentRiskCard } from '../assets/components/cards/RiskCard';
-import SoilCard from '../assets/components/cards/SoilCard';
-import {
-	BottomEllipse,
-	TopEllipse,
-} from '../assets/components/graphics/EllipseShape';
+import SmallMetricCard, {
+	LargeMetricCard,
+	MediumMetricCard,
+} from '../assets/components/cards/MetricCard';
 import colors from '../config/theme';
 
-export default function Home() {
+export default function Analytics() {
+	const hasActiveWarning = true;
+
 	return (
-		<View style={styles.container}>
-			<View style={styles.topEllipse}>
-				<TopEllipse />
-			</View>
-			<View style={styles.bottomEllipse}>
-				<BottomEllipse />
-			</View>
-			<View style={styles.logoContainer}>
-				<Image
-					source={require('../assets/images/logo.png')}
-					style={{ width: 120, height: 120 }}
-				/>
-				<Text style={styles.logoText}>HydroWatch</Text>
-			</View>
-			<View style={styles.content}>
-				<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-					<Ionicons
-						name='location-outline'
-						size={28}
-						color={colors.blue300}
-					/>
-					<Text style={styles.location}>Toronto, ON</Text>
+		<LinearGradient
+			start={{ x: 0, y: 0 }}
+			end={{ x: 1, y: 1 }}
+			colors={colors.gradient}
+			style={styles.root}>
+			<View style={styles.topBar}>
+				<View style={styles.topBarLeft}>
+					<Text style={styles.pageTitle}>Overview</Text>
+					<Text style={styles.locationText}>London, ON</Text>
 				</View>
-				<CurrentRiskCard
-					title='Current Risk'
-					value='Moderate'
+				<View style={styles.topBarActions}>
+					<View style={styles.iconStub}>
+						<Ionicons
+							name='notifications-outline'
+							size={24}
+							color={colors.black}
+							onPress={() => {}}
+						/>
+					</View>
+
+					<View style={styles.iconStub}>
+						<Ionicons
+							name='menu'
+							size={24}
+							color={colors.black}
+							onPress={() => {}}
+						/>
+					</View>
+				</View>
+			</View>
+
+			<ScrollView
+				contentContainerStyle={styles.scrollContent}
+				showsVerticalScrollIndicator={false}>
+				<LargeMetricCard
+					title='Flood risk'
+					value='MODERATE'
+					desc='Elevated due to soil saturation and rainfall'
 				/>
-				<View style={styles.soilCards}>
-					<SoilCard
-						title='Average Soil Moisture'
+
+				<View style={styles.twoColRow}>
+					<SmallMetricCard
+						title='Soil moisture'
 						value='39.5%'
+						desc='Near field capacity for clay soils'
 					/>
-					<SoilCard
-						title='Soil  Asymmetry'
-						value='Low'
+
+					<SmallMetricCard
+						title='Site symmetry'
+						value='High'
+						desc='Moisture consistent around foundation'
 					/>
 				</View>
+
 				<ForecastCard />
-				<Text style={styles.lastUpdated}>Last Updated: 10:30 AM</Text>
-			</View>
-		</View>
+
+				{hasActiveWarning && (
+					<MediumMetricCard
+						title='Flood warning issued'
+						value='Environment Canada'
+						desc='Valid until Jan 1, 6:00 AM'
+						isWarning={true}
+					/>
+				)}
+
+				<MediumMetricCard
+					title='Recommended action'
+					value='No immediate action required'
+					desc='Monitor conditions this evening'
+				/>
+
+				<Text style={styles.lastUpdated}>Last updated: 12 minutes ago</Text>
+			</ScrollView>
+		</LinearGradient>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		justifyContent: 'flex-start',
+	contextBlock: {
+		gap: 4,
+		marginBottom: 4,
+		marginLeft: 10,
+	},
+
+	iconStub: {
+		backgroundColor: colors.white,
+		borderRadius: 12,
+		height: 40,
+		width: 40,
+		opacity: 0.5,
 		alignItems: 'center',
-		backgroundColor: colors.blue100,
-		overflow: 'hidden',
-		paddingBottom: 80,
-	},
-	bottomEllipse: {
-		position: 'absolute',
-		bottom: -90,
-	},
-	location: {
-		fontSize: 20,
-		color: colors.blue300,
-		fontStyle: 'italic',
-		textDecorationLine: 'underline',
-	},
-	lastUpdated: {
-		fontSize: 16,
-		color: colors.blue300,
-		fontStyle: 'italic',
-		textAlign: 'center',
-	},
-	logoContainer: {
-		flexDirection: 'row',
 		justifyContent: 'center',
-		alignItems: 'center',
-		position: 'absolute',
-		right: 30,
-		top: 70,
+		shadowColor: colors.black,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.1,
+		shadowRadius: 5,
+		elevation: 5,
 	},
-	logoText: {
-		fontSize: 40,
-		fontWeight: 'bold',
-		color: colors.blue300,
-		fontFamily: 'jost',
-		textShadowColor: 'rgba(0, 0, 0, 0.25)',
-		textShadowOffset: { width: 0, height: 2 },
-		textShadowRadius: 2,
+
+	lastUpdated: {
+		fontSize: 13,
+		marginTop: 2,
+		opacity: 0.75,
+		paddingHorizontal: 16,
 	},
-	content: {
-		marginTop: 210,
-		width: '90%',
-		height: 200,
-		gap: 11,
+
+	locationText: {
+		fontSize: 16,
+		fontWeight: '500',
 	},
-	soilCards: {
+
+	pageTitle: {
+		fontSize: 20,
+		fontWeight: '700',
+	},
+
+	root: {
+		flex: 1,
+		paddingTop: 50,
+	},
+
+	scrollContent: {
+		gap: 10,
+		paddingBottom: 90,
+		paddingHorizontal: 16,
+		paddingTop: 8,
+	},
+
+	topBar: {
 		flexDirection: 'row',
+		alignItems: 'center',
 		justifyContent: 'space-between',
+		paddingHorizontal: 16,
+		paddingTop: 8,
+		paddingBottom: 8,
 	},
-	topEllipse: {
-		position: 'absolute',
-		top: -90,
-		right: -110,
+
+	topBarActions: {
+		flexDirection: 'row',
+		gap: 10,
 	},
-	title: {
-		fontSize: 20,
-		fontWeight: 'bold',
-		fontFamily: 'jost',
+
+	topBarLeft: {
+		flexDirection: 'column',
+		gap: 2,
+		marginLeft: 4,
 	},
-	value: {
-		fontSize: 20,
-		fontFamily: 'jost',
+
+	twoColRow: {
+		flexDirection: 'row',
+		gap: 12,
 	},
 });

@@ -10,19 +10,19 @@ export default function TabsLayout() {
 				animation: 'fade',
 				headerShown: false,
 				tabBarShowLabel: true,
-				tabBarActiveTintColor: colors.white,
-				tabBarInactiveTintColor: colors.blue100,
+				tabBarActiveTintColor: colors.blue300,
+				tabBarInactiveTintColor: colors.blue300,
 				tabBarStyle: {
-					height: 72,
+					height: 75,
 					paddingTop: 8,
 					paddingBottom: 12,
-					borderTopLeftRadius: 18,
-					borderTopRightRadius: 18,
+					borderTopLeftRadius: 30,
+					borderTopRightRadius: 30,
 					position: 'absolute',
 					left: 10,
 					right: 10,
 					bottom: 0,
-					backgroundColor: colors.blue300,
+					backgroundColor: colors.white,
 					borderTopWidth: 0,
 					shadowColor: colors.black,
 					shadowOffset: { width: 0, height: 8 },
@@ -63,38 +63,12 @@ export default function TabsLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name='soil'
+				name='analytics'
 				options={{
-					title: 'Soil',
+					title: 'Analytics',
 					tabBarIcon: ({ color, size, focused }) => (
 						<Ionicons
-							name={focused ? 'leaf' : 'leaf-outline'}
-							size={size}
-							color={color}
-						/>
-					),
-				}}
-			/>
-			<Tabs.Screen
-				name='site'
-				options={{
-					title: 'Site',
-					tabBarIcon: ({ color, size, focused }) => (
-						<Ionicons
-							name={focused ? 'location' : 'location-outline'}
-							size={size}
-							color={color}
-						/>
-					),
-				}}
-			/>
-			<Tabs.Screen
-				name='forecast'
-				options={{
-					title: 'Forecast',
-					tabBarIcon: ({ color, size, focused }) => (
-						<Ionicons
-							name={focused ? 'rainy' : 'rainy-outline'}
+							name={focused ? 'analytics' : 'analytics-outline'}
 							size={size}
 							color={color}
 						/>

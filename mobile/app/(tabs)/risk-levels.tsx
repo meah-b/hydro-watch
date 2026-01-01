@@ -1,7 +1,7 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
-import { RiskInfoCard } from '../assets/components/cards/RiskCard';
+import { RiskLevelCard } from '../assets/components/cards/MetricCard';
 import RiskBar from '../assets/components/graphics/RiskBar';
 import colors from '../config/theme';
 
@@ -38,7 +38,7 @@ export default function RiskLevels() {
 					/>
 				</View>
 				<View style={styles.infoCards}>
-					<RiskInfoCard
+					<RiskLevelCard
 						desc='Example description for low risk level.'
 						value='Low'
 					/>
@@ -55,7 +55,7 @@ export default function RiskLevels() {
 							strokeDasharray='6,4'
 						/>
 					</Svg>
-					<RiskInfoCard
+					<RiskLevelCard
 						desc='Example description for moderate risk level.'
 						value='Moderate'
 					/>
@@ -72,7 +72,7 @@ export default function RiskLevels() {
 							strokeDasharray='6,4'
 						/>
 					</Svg>
-					<RiskInfoCard
+					<RiskLevelCard
 						desc='Example description for high risk level.'
 						value='High'
 					/>
@@ -89,7 +89,7 @@ export default function RiskLevels() {
 							strokeDasharray='6,4'
 						/>
 					</Svg>
-					<RiskInfoCard
+					<RiskLevelCard
 						desc='Example description for severe risk level.'
 						value='Severe'
 					/>
