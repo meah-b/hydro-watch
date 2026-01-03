@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
 	},
 
 	heroValue: {
-		fontSize: 28,
+		fontSize: 26,
 		fontWeight: '800',
 		letterSpacing: 0.5,
 	},

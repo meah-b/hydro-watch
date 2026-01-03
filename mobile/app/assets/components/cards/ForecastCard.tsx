@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import colors from '../../../config/theme';
-import PrecipChart from '../utilities/PrecipChart';
+import ForecastChart from '../utilities/ForecastChart';
 
 export default function ForecastCard() {
 	const values = [
@@ -20,7 +20,7 @@ export default function ForecastCard() {
 		<View style={styles.card}>
 			<Text style={styles.cardTitle}> Precipitation Forecast</Text>
 			<View style={styles.chartClip}>
-				<PrecipChart data={data} />
+				<ForecastChart data={data} />
 			</View>
 			<Text style={styles.cardTitle}>Next 24 hours: {valueText}</Text>
 		</View>
@@ -44,15 +44,15 @@ const styles = StyleSheet.create({
 		elevation: 5,
 	},
 
-	chartClip: {
-		width: '100%',
-		overflow: 'hidden',
-		marginLeft: -5,
-	},
-
 	cardTitle: {
 		fontSize: 14,
 		fontWeight: '600',
 		opacity: 0.9,
+	},
+
+	chartClip: {
+		width: '100%',
+		overflow: 'hidden',
+		marginLeft: 5,
 	},
 });

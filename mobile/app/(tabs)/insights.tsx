@@ -1,44 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import ForecastVsIdfBarChart from '../assets/components/utilities/ForecastVsIdfBarChart';
+import FoundationMoistureMap from '../assets/components/utilities/FoundationMoistureMap';
+import SoilMoistureChartSvg from '../assets/components/utilities/SoilMoistureChart';
 import colors from '../config/theme';
 
 type Influence = 'Low' | 'Moderate' | 'High';
 type Severity = 'Normal' | 'Elevated' | 'High';
-
-function HouseMoistureMapStub() {
-	return (
-		<View style={styles.stubBox}>
-			<Text style={styles.stubTitle}>Foundation moisture map (stub)</Text>
-			<Text style={styles.stubText}>
-				House + 4 nodes (Front/Left/Back/Right) with % + Normal/Elevated/High
-				labels.
-			</Text>
-		</View>
-	);
-}
-
-function MoistureTrendChartStub() {
-	const moisture6h = [
-		36.2, 36.4, 36.5, 36.8, 37.0, 37.1, 37.3, 37.5, 37.6, 37.8, 38.0, 38.1,
-		38.4, 38.6, 38.7, 38.9, 39.0, 39.1, 39.2, 39.3, 39.4, 39.4, 39.5, 39.5,
-		39.5,
-	];
-	return;
-}
-
-function RainVsIdfChartStub() {
-	return (
-		<View style={styles.stubBox}>
-			<Text style={styles.stubTitle}>
-				Rain forecast vs IDF reference (stub)
-			</Text>
-			<Text style={styles.stubText}>
-				Forecast rainfall + IDF storm reference band/line to indicate intensity.
-			</Text>
-		</View>
-	);
-}
+type Side = 'Front' | 'Back' | 'Right' | 'Left';
 
 function InfluenceRow({
 	label,
@@ -74,22 +44,18 @@ function InfluenceRow({
 	);
 }
 
-function SeverityChip({ level }: { level: Severity }) {
-	const bg =
-		level === 'Normal'
-			? colors.green200
-			: level === 'Elevated'
-			? colors.yellow100
-			: colors.orange100;
-
-	return (
-		<View style={[styles.sevChip, { backgroundColor: bg }]}>
-			<Text style={styles.sevChipText}>{level}</Text>
-		</View>
-	);
-}
-
 export default function Insights() {
+	const moisture6h = [
+		36.2, 36.4, 36.5, 36.8, 37.0, 37.1, 37.3, 37.5, 37.6, 37.8, 38.0, 38.1,
+		38.4, 38.6, 38.7, 38.9, 39.0, 39.1, 39.2, 39.3, 39.4, 39.4, 39.5, 39.5,
+		39.5,
+	];
+	const nodes: { side: Side; value: number; sev: Severity }[] = [
+		{ side: 'Front', value: 42.1, sev: 'Elevated' },
+		{ side: 'Left', value: 37.9, sev: 'Normal' },
+		{ side: 'Back', value: 36.2, sev: 'Normal' },
+		{ side: 'Right', value: 41.8, sev: 'Elevated' },
+	];
 	const avgMoisture = 39.5;
 	const symmetry: 'High' | 'Moderate' | 'Low' = 'High';
 	const symmetryNote =
@@ -115,13 +81,6 @@ export default function Insights() {
 			value: 'Moderate',
 			desc: 'Rain expected within the next 12 hours.',
 		},
-	];
-
-	const nodes: { side: string; value: number; sev: Severity }[] = [
-		{ side: 'Front', value: 42.1, sev: 'Elevated' },
-		{ side: 'Left', value: 37.9, sev: 'Normal' },
-		{ side: 'Back', value: 36.2, sev: 'Normal' },
-		{ side: 'Right', value: 41.8, sev: 'Elevated' },
 	];
 
 	return (
@@ -159,20 +118,7 @@ export default function Insights() {
 							<Text style={styles.metaValue}>{avgMoisture.toFixed(1)}%</Text>
 						</View>
 					</View>
-
-					<HouseMoistureMapStub />
-
-					<View style={styles.nodeRow}>
-						{nodes.map((n) => (
-							<View
-								key={n.side}
-								style={styles.nodeChip}>
-								<Text style={styles.nodeSide}>{n.side}</Text>
-								<Text style={styles.nodeVal}>{n.value.toFixed(1)}%</Text>
-								<SeverityChip level={n.sev} />
-							</View>
-						))}
-					</View>
+					<FoundationMoistureMap nodes={nodes} />
 					<View style={styles.divider} />
 					<Text style={styles.cardLabel}>Symmetry</Text>
 					<Text style={styles.actionPrimary}>{symmetry}</Text>
@@ -180,11 +126,16 @@ export default function Insights() {
 				</View>
 
 				<View style={styles.card}>
+					{/* <View style={styles.cardHeaderRow}></View> */}
 					<Text style={styles.cardTitle}>Soil moisture trend</Text>
 					<Text style={styles.mutedDesc}>
 						Last 6 hours · all sides averaged
 					</Text>
-					{/* <MoistureTrendChartStub /> */}
+					<SoilMoistureChartSvg
+						values={moisture6h}
+						fieldCapacity={38}
+						saturation={46}
+					/>
 					<View style={styles.inlineStats}>
 						<View style={styles.statItem}>
 							<Text style={styles.metaLabel}>6h change</Text>
@@ -202,7 +153,12 @@ export default function Insights() {
 					<Text style={styles.mutedDesc}>
 						Forecast rainfall compared to IDF reference levels.
 					</Text>
-					<RainVsIdfChartStub />
+					<View style={styles.barChart}>
+						<ForecastVsIdfBarChart
+							forecastMm={5.1}
+							idfMm={60}
+						/>
+					</View>
 					<Text style={styles.mutedDesc}>
 						IDF curves are historical design references used for context only.
 					</Text>
@@ -215,6 +171,10 @@ export default function Insights() {
 }
 
 const styles = StyleSheet.create({
+	barChart: {
+		alignItems: 'center',
+	},
+
 	root: {
 		flex: 1,
 		paddingTop: 100,
@@ -268,37 +228,9 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 16,
 	},
 
-	iconStub: {
-		backgroundColor: colors.white,
-		borderRadius: 10,
-		height: 36,
-		width: 36,
-		opacity: 0.6,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-
-	stubBox: {
-		borderRadius: 14,
-		padding: 14,
-		backgroundColor: colors.blue100,
-		opacity: 0.9,
-		gap: 6,
-	},
-
-	stubTitle: {
-		fontSize: 13,
-		fontWeight: '700',
-	},
-
-	stubText: {
-		fontSize: 12,
-		opacity: 0.8,
-	},
-
 	driverList: {
 		gap: 12,
-		marginTop: 2,
+		marginVertical: 2,
 	},
 
 	driverRow: {
@@ -346,47 +278,6 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		fontWeight: '700',
 		opacity: 0.9,
-	},
-
-	nodeRow: {
-		flexDirection: 'row',
-		gap: 10,
-		flexWrap: 'wrap',
-	},
-
-	nodeChip: {
-		borderRadius: 14,
-		paddingVertical: 10,
-		paddingHorizontal: 12,
-		backgroundColor: colors.white,
-		borderWidth: 1,
-		borderColor: 'rgba(0,0,0,0.06)',
-		gap: 4,
-		minWidth: 105,
-	},
-
-	nodeSide: {
-		fontSize: 12,
-		opacity: 0.7,
-		fontWeight: '700',
-	},
-
-	nodeVal: {
-		fontSize: 14,
-		fontWeight: '800',
-	},
-
-	sevChip: {
-		alignSelf: 'flex-start',
-		paddingHorizontal: 8,
-		paddingVertical: 4,
-		borderRadius: 999,
-	},
-
-	sevChipText: {
-		fontSize: 11,
-		fontWeight: '800',
-		opacity: 0.85,
 	},
 
 	divider: {

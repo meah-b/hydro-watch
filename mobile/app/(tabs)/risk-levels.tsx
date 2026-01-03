@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
 
 	heroValue: {
 		fontSize: 26,
-		fontWeight: '700',
+		fontWeight: '800',
 		letterSpacing: 0.5,
 	},
 
