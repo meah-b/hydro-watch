@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ForecastCard from '../assets/components/cards/ForecastCard';
@@ -31,19 +32,32 @@ export default function Home() {
 					title='Flood risk'
 					value='MODERATE'
 					desc='Elevated due to soil saturation and rainfall'
+					onPress={() => router.push('/(tabs)/risk')}
 				/>
 
 				<View style={styles.twoColRow}>
 					<SmallMetricCard
 						title='Soil moisture'
-						value='39.5%'
-						desc='Near field capacity for clay soils'
+						value='57.7%'
+						desc='Near field capacity for clay loam soils'
+						onPress={() =>
+							router.push({
+								pathname: '/(tabs)/insights',
+								params: { scrollTo: 'trend' },
+							})
+						}
 					/>
 
 					<SmallMetricCard
 						title='Site symmetry'
 						value='High'
 						desc='Moisture consistent around foundation'
+						onPress={() =>
+							router.push({
+								pathname: '/(tabs)/insights',
+								params: { scrollTo: 'foundation' },
+							})
+						}
 					/>
 				</View>
 
@@ -59,9 +73,9 @@ export default function Home() {
 				)}
 
 				<MediumMetricCard
-					title='Recommended action'
-					value='No immediate action required'
-					desc='Monitor conditions this evening'
+					title='Sensor Status'
+					value='4/4 sensors reporting normally.'
+					desc='Estimated battery life: 6 months'
 				/>
 
 				<Text style={styles.lastUpdated}>Last updated: 12 minutes ago</Text>

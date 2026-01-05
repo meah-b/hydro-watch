@@ -1,147 +1,110 @@
 import colors from '@/app/config/theme';
+import { SensorNode, SensorNodesMap } from '@/app/config/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useMemo, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 
-type Severity = 'Normal' | 'Elevated' | 'High';
+const H = 290;
+const CHIP = 85;
+const PAD = 12;
 
-function NodeChip({
-	n,
-}: {
-	n: { side: string; value: number; sev: Severity };
-}) {
-	const bg =
-		n.sev === 'Normal'
-			? colors.green200
-			: n.sev === 'Elevated'
-			? colors.yellow100
-			: colors.orange100;
+const severityBg = (sev: SensorNode['severity']) =>
+	sev === 'Normal'
+		? colors.green200
+		: sev === 'Elevated'
+		? colors.yellow100
+		: colors.orange100;
 
+function NodeChip({ node }: { node: SensorNode }) {
 	return (
 		<View style={styles.nodeChip}>
-			<Text style={styles.nodeSide}>{n.side}</Text>
-			<Text style={styles.nodeVal}>{n.value.toFixed(1)}%</Text>
-			<View style={[styles.sevChip, { backgroundColor: bg }]}>
-				<Text style={styles.sevChipText}>{n.sev}</Text>
+			<Text style={styles.nodeSide}>{node.side}</Text>
+			<Text style={styles.nodeVal}>{node.moisture.toFixed(1)}%</Text>
+			<View
+				style={[
+					styles.sevChip,
+					{ backgroundColor: severityBg(node.severity) },
+				]}>
+				<Text style={styles.sevChipText}>{node.severity}</Text>
 			</View>
 		</View>
 	);
 }
 
-type Node = {
-	side: 'Front' | 'Back' | 'Right' | 'Left';
-	value: number;
-	sev: Severity;
-};
-
-type Props = {
-	nodes: Node[];
-};
-
-export default function FoundationMoistureMap({ nodes }: Props) {
+export default function FoundationMoistureMap({
+	nodes,
+}: {
+	nodes: SensorNodesMap;
+}) {
 	const [containerW, setContainerW] = useState(0);
 
-	const bySide = useMemo(() => {
-		const m = new Map<Node['side'], Node>();
-		nodes.forEach((n) => m.set(n.side, n));
-		return m;
-	}, [nodes]);
-
-	const ordered: Node[] = (['Front', 'Left', 'Back', 'Right'] as const)
-		.map((s) => bySide.get(s))
-		.filter(Boolean) as Node[];
-
-	const onLayout = (e: LayoutChangeEvent) => {
-		setContainerW(e.nativeEvent.layout.width);
+	const onLayout = ({ nativeEvent }: LayoutChangeEvent) => {
+		setContainerW(nativeEvent.layout.width);
 	};
 
-	const H = 290;
-	const chip = 85;
-	const pad = 12;
+	const geometry = useMemo(() => {
+		if (!containerW) return null;
 
-	const cx = containerW / 2;
-	const cy = H / 2;
+		const cx = containerW / 2;
+		const cy = H / 2;
+		const half = CHIP / 2;
 
-	const left = { x: pad + chip / 2, y: cy };
-	const right = { x: containerW - pad - chip / 2, y: cy };
-	const top = { x: cx, y: pad + chip / 2 };
-	const bottom = { x: cx, y: H - pad - chip / 2 };
+		const home = { x: cx, y: cy };
+		const points = [
+			{ x: PAD + half, y: cy },
+			{ x: containerW - PAD - half, y: cy },
+			{ x: cx, y: PAD + half },
+			{ x: cx, y: H - PAD - half },
+		];
 
-	const home = { x: cx, y: cy };
+		return { home, points };
+	}, [containerW]);
 
 	return (
 		<View
 			style={styles.mapWrap}
 			onLayout={onLayout}>
-			{containerW > 0 && (
+			{!!geometry && (
 				<Svg
 					pointerEvents='none'
 					style={StyleSheet.absoluteFill}
 					width={containerW}
 					height={H}>
-					<Line
-						x1={home.x}
-						y1={home.y}
-						x2={left.x}
-						y2={left.y}
-						stroke={colors.black}
-						strokeOpacity={0.14}
-						strokeWidth={2}
-					/>
-					<Line
-						x1={home.x}
-						y1={home.y}
-						x2={right.x}
-						y2={right.y}
-						stroke={colors.black}
-						strokeOpacity={0.14}
-						strokeWidth={2}
-					/>
-					<Line
-						x1={home.x}
-						y1={home.y}
-						x2={top.x}
-						y2={top.y}
-						stroke={colors.black}
-						strokeOpacity={0.14}
-						strokeWidth={2}
-					/>
-					<Line
-						x1={home.x}
-						y1={home.y}
-						x2={bottom.x}
-						y2={bottom.y}
-						stroke={colors.black}
-						strokeOpacity={0.14}
-						strokeWidth={2}
-					/>
+					{geometry.points.map((p, i) => (
+						<Line
+							key={i}
+							x1={geometry.home.x}
+							y1={geometry.home.y}
+							x2={p.x}
+							y2={p.y}
+							stroke={colors.black}
+							strokeOpacity={0.14}
+							strokeWidth={2}
+						/>
+					))}
 				</Svg>
 			)}
 
 			<View style={styles.row}>
-				<NodeChip n={ordered[1]} />
+				<NodeChip node={nodes.left} />
 
 				<View style={styles.column}>
-					<NodeChip n={ordered[2]} />
+					<NodeChip node={nodes.back} />
+
 					<View style={styles.houseWrap}>
 						<Ionicons
 							name='home'
 							size={40}
 							color={colors.white}
-							style={{
-								shadowColor: colors.black,
-								shadowOffset: { width: 0, height: 4 },
-								shadowOpacity: 0.2,
-								shadowRadius: 5,
-								elevation: 5,
-							}}
+							style={styles.houseIcon}
 						/>
 					</View>
-					<NodeChip n={ordered[0]} />
+
+					<NodeChip node={nodes.front} />
 				</View>
 
-				<NodeChip n={ordered[3]} />
+				<NodeChip node={nodes.right} />
 			</View>
 		</View>
 	);
@@ -152,6 +115,14 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'space-between',
 		height: 290,
+	},
+
+	houseIcon: {
+		shadowColor: colors.black,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.2,
+		shadowRadius: 5,
+		elevation: 5,
 	},
 
 	houseWrap: {

@@ -1,22 +1,14 @@
 import colors from '@/app/config/theme';
+import { RainfallData } from '@/app/config/types';
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { G, Line, Rect, Text as SvgText } from 'react-native-svg';
 
-type Props = {
-	forecastMm: number;
-	idfMm: number;
-};
-
-function roundUpNice(v: number) {
-	if (v <= 0) return 1;
-	const pow = Math.pow(10, Math.floor(Math.log10(v)));
-	const n = v / pow;
-	const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-	return nice * pow;
-}
-
-export default function ForecastVsIdfBarChart({ forecastMm, idfMm }: Props) {
+export default function ForecastVsIdfBarChart({
+	rainfallData,
+}: {
+	rainfallData: RainfallData;
+}) {
 	const width = 280;
 	const height = 140;
 	const padT = 16;
@@ -25,9 +17,19 @@ export default function ForecastVsIdfBarChart({ forecastMm, idfMm }: Props) {
 	const plotH = height - padT - padB;
 
 	const yMax = useMemo(() => {
-		const maxV = Math.max(forecastMm, idfMm, 0);
-		return roundUpNice(maxV * 1.15 + 0.5);
-	}, [forecastMm, idfMm]);
+		const maxV = Math.max(
+			rainfallData.forecastedDepth24h,
+			rainfallData.idfDepth24h,
+			0
+		);
+
+		const v = maxV * 1.15 + 0.5;
+		if (v <= 0) return 1;
+		const pow = Math.pow(10, Math.floor(Math.log10(v)));
+		const n = v / pow;
+		const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+		return nice * pow;
+	}, [rainfallData]);
 
 	const yFor = (v: number) => padT + (1 - v / (yMax || 1)) * plotH;
 
@@ -38,8 +40,8 @@ export default function ForecastVsIdfBarChart({ forecastMm, idfMm }: Props) {
 
 	const x1 = gap;
 	const x2 = gap * 2 + barW;
-	const yForecast = yFor(Math.max(0, forecastMm));
-	const yIdf = yFor(Math.max(0, idfMm));
+	const yForecast = yFor(Math.max(0, rainfallData.forecastedDepth24h));
+	const yIdf = yFor(Math.max(0, rainfallData.idfDepth24h));
 
 	const hForecast = bottomY - yForecast;
 	const hIdf = bottomY - yIdf;
@@ -103,7 +105,7 @@ export default function ForecastVsIdfBarChart({ forecastMm, idfMm }: Props) {
 						fill={colors.black}
 						opacity={0.75}
 						textAnchor='middle'>
-						{fmt(forecastMm)}
+						{fmt(rainfallData.forecastedDepth24h)}
 					</SvgText>
 
 					<SvgText
@@ -114,7 +116,7 @@ export default function ForecastVsIdfBarChart({ forecastMm, idfMm }: Props) {
 						fill={colors.black}
 						opacity={0.75}
 						textAnchor='middle'>
-						{fmt(idfMm)}
+						{fmt(rainfallData.idfDepth24h)}
 					</SvgText>
 
 					<SvgText

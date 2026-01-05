@@ -1,87 +1,72 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+	LayoutChangeEvent,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from 'react-native';
 import ForecastVsIdfBarChart from '../assets/components/utilities/ForecastVsIdfBarChart';
 import FoundationMoistureMap from '../assets/components/utilities/FoundationMoistureMap';
 import SoilMoistureChartSvg from '../assets/components/utilities/SoilMoistureChart';
 import colors from '../config/theme';
+import { Influence, RainfallData, SensorNodesMap } from '../config/types';
 
-type Influence = 'Low' | 'Moderate' | 'High';
-type Severity = 'Normal' | 'Elevated' | 'High';
-type Side = 'Front' | 'Back' | 'Right' | 'Left';
-
-function InfluenceRow({
-	label,
-	value,
-	desc,
-}: {
-	label: string;
-	value: Influence;
-	desc: string;
-}) {
-	const pillText = `${value} influence`;
-	return (
-		<View style={styles.driverRow}>
-			<View style={{ flex: 1, gap: 2 }}>
-				<Text style={styles.driverLabel}>{label}</Text>
-				<Text style={styles.mutedDesc}>{desc}</Text>
-			</View>
-			<View
-				style={[
-					styles.pill,
-					{
-						backgroundColor:
-							value === 'High'
-								? colors.red200
-								: value === 'Moderate'
-								? colors.yellow100
-								: colors.green200,
-					},
-				]}>
-				<Text style={styles.pillText}>{pillText}</Text>
-			</View>
-		</View>
-	);
-}
+type SectionKey = 'foundation' | 'trend';
 
 export default function Insights() {
+	const { scrollTo } = useLocalSearchParams<{ scrollTo?: SectionKey }>();
+
+	const scrollRef = useRef<ScrollView>(null);
+
+	const [sectionY, setSectionY] = useState<Record<SectionKey, number>>({
+		foundation: 0,
+		trend: 0,
+	});
+
+	const makeOnLayout = (key: SectionKey) => (e: LayoutChangeEvent) => {
+		const y = e.nativeEvent.layout.y;
+		setSectionY((prev) => (prev[key] === y ? prev : { ...prev, [key]: y }));
+	};
+
+	useEffect(() => {
+		if (!scrollTo) return;
+		const id = setTimeout(() => {
+			const y = sectionY[scrollTo];
+			scrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
+		}, 50);
+
+		return () => clearTimeout(id);
+	}, [scrollTo, sectionY]);
+
 	const moisture6h = [
-		36.2, 36.4, 36.5, 36.8, 37.0, 37.1, 37.3, 37.5, 37.6, 37.8, 38.0, 38.1,
-		38.4, 38.6, 38.7, 38.9, 39.0, 39.1, 39.2, 39.3, 39.4, 39.4, 39.5, 39.5,
-		39.5,
+		0.22, 0.23, 0.24, 0.268, 0.27, 0.31, 0.373, 0.375, 0.376, 0.378, 0.38,
+		0.381, 0.384, 0.386, 0.387, 0.389, 0.39, 0.391, 0.45, 0.5, 0.52, 0.54, 0.55,
+		0.6, 0.577,
 	];
-	const nodes: { side: Side; value: number; sev: Severity }[] = [
-		{ side: 'Front', value: 42.1, sev: 'Elevated' },
-		{ side: 'Left', value: 37.9, sev: 'Normal' },
-		{ side: 'Back', value: 36.2, sev: 'Normal' },
-		{ side: 'Right', value: 41.8, sev: 'Elevated' },
-	];
-	const avgMoisture = 39.5;
-	const symmetry: 'High' | 'Moderate' | 'Low' = 'High';
+	const delta = moisture6h.at(-1)! - moisture6h[0];
+	const deltaText = `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}%`;
+
+	const rainfallData: RainfallData = {
+		forecastedDepth24h: 2.1,
+		idfDepth24h: 60.91,
+	};
+	const nodes: SensorNodesMap = {
+		front: { side: 'Front', moisture: 60.0, severity: 'Elevated' },
+		left: { side: 'Left', moisture: 55.0, severity: 'Normal' },
+		back: { side: 'Back', moisture: 50.0, severity: 'Normal' },
+		right: { side: 'Right', moisture: 66.0, severity: 'Elevated' },
+	};
+	const avgMoisture = 57.7;
+	const symmetry: Influence = 'High';
 	const symmetryNote =
 		symmetry === 'High'
 			? 'Moisture is consistent around the foundation.'
 			: symmetry === 'Moderate'
 			? 'Moisture differs by side; monitor the highest side during rainfall.'
 			: 'Moisture varies strongly by side; use side readings to guide monitoring.';
-
-	const drivers: { label: string; value: Influence; desc: string }[] = [
-		{
-			label: 'Soil moisture',
-			value: 'High',
-			desc: 'Soil near field capacity for clay soils.',
-		},
-		{
-			label: 'Site sensitivity',
-			value: 'Low',
-			desc: 'Site factors are not strongly elevating risk.',
-		},
-		{
-			label: 'Forecasted rainfall',
-			value: 'Moderate',
-			desc: 'Rain expected within the next 12 hours.',
-		},
-	];
 
 	return (
 		<LinearGradient
@@ -90,28 +75,13 @@ export default function Insights() {
 			colors={colors.gradient}
 			style={styles.root}>
 			<ScrollView
+				ref={scrollRef}
 				contentContainerStyle={styles.scrollContent}
 				showsVerticalScrollIndicator={false}>
 				<View style={styles.card}>
-					<Text style={styles.cardTitle}>Current risk drivers</Text>
-					<View style={styles.driverList}>
-						{drivers.map((d) => (
-							<InfluenceRow
-								key={d.label}
-								label={d.label}
-								value={d.value}
-								desc={d.desc}
-							/>
-						))}
-					</View>
-					<Text style={styles.mutedDesc}>
-						Influence ratings describe how strongly each factor is contributing
-						to the current risk estimate.
-					</Text>
-				</View>
-
-				<View style={styles.card}>
-					<View style={styles.cardHeaderRow}>
+					<View
+						onLayout={makeOnLayout('foundation')}
+						style={styles.cardHeaderRow}>
 						<Text style={styles.cardTitle}>Foundation moisture</Text>
 						<View style={styles.rightMeta}>
 							<Text style={styles.metaLabel}>Avg</Text>
@@ -125,39 +95,37 @@ export default function Insights() {
 					<Text style={styles.mutedDesc}>{symmetryNote}</Text>
 				</View>
 
-				<View style={styles.card}>
-					{/* <View style={styles.cardHeaderRow}></View> */}
+				<View
+					onLayout={makeOnLayout('trend')}
+					style={styles.card}>
+					{/* TODO: add info icon with details drawer */}
 					<Text style={styles.cardTitle}>Soil moisture trend</Text>
 					<Text style={styles.mutedDesc}>
 						Last 6 hours · all sides averaged
 					</Text>
-					<SoilMoistureChartSvg
-						values={moisture6h}
-						fieldCapacity={38}
-						saturation={46}
-					/>
+					<SoilMoistureChartSvg values={moisture6h} />
 					<View style={styles.inlineStats}>
 						<View style={styles.statItem}>
 							<Text style={styles.metaLabel}>6h change</Text>
-							<Text style={styles.metaValue}>+3.2%</Text>
+							<Text style={styles.metaValue}>{deltaText}</Text>
 						</View>
 						<View style={styles.statItem}>
 							<Text style={styles.metaLabel}>Peak</Text>
-							<Text style={styles.metaValue}>42.1%</Text>
+							<Text style={styles.metaValue}>
+								{(Math.max(...moisture6h) * 100).toFixed(1)}%
+							</Text>
 						</View>
 					</View>
 				</View>
 
 				<View style={styles.card}>
+					{/* TODO: add info icon with details drawer */}
 					<Text style={styles.cardTitle}>Rain intensity context</Text>
 					<Text style={styles.mutedDesc}>
 						Forecast rainfall compared to IDF reference levels.
 					</Text>
 					<View style={styles.barChart}>
-						<ForecastVsIdfBarChart
-							forecastMm={5.1}
-							idfMm={60}
-						/>
+						<ForecastVsIdfBarChart rainfallData={rainfallData} />
 					</View>
 					<Text style={styles.mutedDesc}>
 						IDF curves are historical design references used for context only.
@@ -226,34 +194,6 @@ const styles = StyleSheet.create({
 		marginTop: 2,
 		opacity: 0.75,
 		paddingHorizontal: 16,
-	},
-
-	driverList: {
-		gap: 12,
-		marginVertical: 2,
-	},
-
-	driverRow: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 12,
-	},
-
-	driverLabel: {
-		fontSize: 14,
-		fontWeight: '700',
-	},
-
-	pill: {
-		paddingHorizontal: 10,
-		paddingVertical: 6,
-		borderRadius: 999,
-	},
-
-	pillText: {
-		fontSize: 12,
-		fontWeight: '700',
-		opacity: 0.85,
 	},
 
 	cardHeaderRow: {

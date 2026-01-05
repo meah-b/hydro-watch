@@ -13,8 +13,6 @@ import Svg, {
 
 type Props = {
 	values: number[];
-	fieldCapacity: number;
-	saturation: number;
 };
 
 function roundDownToStep(v: number, step: number) {
@@ -43,11 +41,7 @@ function areaPath(points: { x: number; y: number }[], bottomY: number) {
 	);
 }
 
-export default function SoilMoistureChartSvg({
-	values,
-	fieldCapacity,
-	saturation,
-}: Props) {
+export default function SoilMoistureChartSvg({ values }: Props) {
 	const n = Math.max(2, values.length);
 
 	const width = 280;
@@ -57,12 +51,12 @@ export default function SoilMoistureChartSvg({
 	const padB = 20;
 	const chartOffsetX = -40;
 
-	const plotW = width - padL + 15;
+	const plotW = width - padL + 45;
 	const plotH = height - padT - padB;
 
 	const { yMin, yMax } = useMemo(() => {
-		const minV = Math.min(...values, fieldCapacity, saturation);
-		const maxV = Math.max(...values, fieldCapacity, saturation);
+		const minV = Math.min(...values, 0, 1);
+		const maxV = Math.max(...values, 0, 1);
 
 		const rawMin = minV - 0.8;
 		const rawMax = maxV + 0.8;
@@ -71,7 +65,7 @@ export default function SoilMoistureChartSvg({
 			yMin: roundDownToStep(rawMin, 1),
 			yMax: roundUpToStep(rawMax, 1),
 		};
-	}, [values, fieldCapacity, saturation]);
+	}, [values]);
 
 	const xForIndex = useCallback(
 		(i: number) => padL + chartOffsetX + (i / (values.length - 1)) * plotW,
@@ -88,8 +82,8 @@ export default function SoilMoistureChartSvg({
 		[values, xForIndex, yForValue]
 	);
 
-	const yFC = yForValue(fieldCapacity);
-	const ySAT = yForValue(saturation);
+	const yFC = yForValue(0);
+	const ySAT = yForValue(1);
 	const bottomY = padT + plotH;
 
 	const grid = [0.25, 0.5, 0.75].map((t) => padT + t * plotH);
@@ -180,7 +174,7 @@ export default function SoilMoistureChartSvg({
 					fill={colors.black}
 					opacity={0.6}
 					textAnchor='start'>
-					FC {fieldCapacity}%
+					FC
 				</Text>
 				<Text
 					x={padL + plotW + chartOffsetX + 10}
@@ -190,7 +184,7 @@ export default function SoilMoistureChartSvg({
 					fill={colors.black}
 					opacity={0.6}
 					textAnchor='start'>
-					SAT {saturation}%
+					SAT
 				</Text>
 
 				<G>

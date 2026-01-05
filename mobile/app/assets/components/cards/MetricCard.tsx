@@ -15,6 +15,7 @@ interface MetricCardProps {
 	value: string;
 	desc: string;
 	isWarning?: boolean;
+	onPress?: () => void;
 }
 
 interface RiskLevelCardProps {
@@ -25,14 +26,16 @@ interface RiskLevelCardProps {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function SmallMetricCard(props: MetricCardProps) {
-	const { title, value, desc } = props;
+	const { title, value, desc, onPress } = props;
 
 	return (
-		<View style={styles.card}>
+		<Pressable
+			style={styles.card}
+			onPress={onPress}>
 			<Text style={styles.cardTitle}>{title}</Text>
 			<Text style={styles.metricValue}>{value}</Text>
 			<Text style={styles.mutedDesc}>{desc}</Text>
-		</View>
+		</Pressable>
 	);
 }
 
@@ -70,14 +73,16 @@ export function MediumMetricCard(props: MetricCardProps) {
 }
 
 export function LargeMetricCard(props: MetricCardProps) {
-	const { title, value, desc } = props;
+	const { title, value, desc, onPress } = props;
 
 	return (
-		<View style={styles.card}>
+		<Pressable
+			style={styles.card}
+			onPress={onPress}>
 			<Text style={styles.cardLabel}>{title}</Text>
 			<Text style={styles.heroValue}>{value}</Text>
 			<Text style={styles.cardDesc}>{desc}</Text>
-		</View>
+		</Pressable>
 	);
 }
 

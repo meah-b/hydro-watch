@@ -6,8 +6,8 @@ import ForecastChart from '../utilities/ForecastChart';
 
 export default function ForecastCard() {
 	const values = [
-		0.0, 0.0, 0.1, 0.3, 0.8, 1.2, 0.6, 0.2, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0,
-		0.0, 0.4, 0.7, 0.5, 0.2, 0.0, 0.0, 0.0, 0.0,
+		0.0, 0.0, 0.1, 0.2, 0.2, 0.2, 0.3, 0.2, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.1, 0.1, 0.2, 0.3, 0.1, 0.0, 0.0, 0.0, 0.0,
 	];
 	const total24h = values.reduce((a, b) => a + b, 0);
 	const valueText = `~${total24h.toFixed(1)} mm`;

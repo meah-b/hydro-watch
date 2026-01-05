@@ -57,7 +57,7 @@ export default function TabsLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name='risk-levels'
+				name='risk'
 				options={{
 					title: 'Risk',
 					tabBarIcon: ({ color, size, focused }) => (
