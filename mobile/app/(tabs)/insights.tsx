@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
 	LayoutChangeEvent,
 	ScrollView,
@@ -8,13 +8,79 @@ import {
 	Text,
 	View,
 } from 'react-native';
-import ForecastVsIdfBarChart from '../assets/components/utilities/ForecastVsIdfBarChart';
-import FoundationMoistureMap from '../assets/components/utilities/FoundationMoistureMap';
-import SoilMoistureChartSvg from '../assets/components/utilities/SoilMoistureChart';
+import ForecastVsIdfBarChart from '../assets/components/graphics/ForecastVsIdfBarChart';
+import FoundationMoistureMap from '../assets/components/graphics/FoundationMoistureMap';
+import SoilMoistureChartSvg from '../assets/components/graphics/SoilMoistureChart';
+import { getMoisture6hRows, getSiteRow } from '../assets/utilities/fakeDbParse';
+import { asNumber } from '../assets/utilities/fakeDbTypes';
 import colors from '../config/theme';
 import { Influence, RainfallData, SensorNodesMap } from '../config/types';
 
-type SectionKey = 'foundation' | 'trend';
+type SectionKey = 'foundation' | 'trend' | 'rain';
+
+const SITE_ID = 'site_001';
+
+function clamp01(x: number): number {
+	return Math.max(0, Math.min(1, x));
+}
+
+function satToPercent(sat: number): number {
+	return clamp01(sat) * 100;
+}
+
+function classifySeverityFromSat(sat: number): 'Normal' | 'Elevated' | 'High' {
+	// Stub thresholds, tweak later
+	if (sat < 0.2) return 'Normal';
+	if (sat < 0.6) return 'Elevated';
+	return 'High';
+}
+
+function classifySymmetryFromSides(sats: number[]): Influence {
+	// sats are 0..1
+	const minV = Math.min(...sats);
+	const maxV = Math.max(...sats);
+	const spread = maxV - minV;
+
+	// Stub thresholds (difference in saturation fraction)
+	if (spread <= 0.08) return 'High';
+	if (spread <= 0.2) return 'Moderate';
+	return 'Low';
+}
+
+function symmetryNoteFromSides(
+	sym: Influence,
+	satsBySide: Record<string, number>
+): string {
+	// Identify wettest sides for a more specific note
+	const entries = Object.entries(satsBySide).sort((a, b) => b[1] - a[1]);
+	const [wet1, wet2] = entries.slice(0, 2);
+
+	if (sym === 'Low') {
+		return 'Moisture is consistent around the foundation.';
+	}
+
+	if (sym === 'Moderate') {
+		return `Moisture differs by side; ${wet1[0]} is highest. Monitor during rainfall.`;
+	}
+
+	return `Moisture varies strongly by side; ${wet1[0]} and ${wet2[0]} are highest. Use side readings to guide monitoring.`;
+}
+
+function formatMinutesAgo(iso: string): string {
+	const t = Date.parse(iso);
+	if (!Number.isFinite(t)) return 'unknown';
+
+	const diffMs = Date.now() - t;
+	const diffMin = Math.max(0, Math.round(diffMs / (60 * 1000)));
+
+	if (diffMin < 1) return 'just now';
+	if (diffMin === 1) return '1 minute ago';
+	if (diffMin < 60) return `${diffMin} minutes ago`;
+
+	const diffHr = Math.floor(diffMin / 60);
+	if (diffHr === 1) return '1 hour ago';
+	return `${diffHr} hours ago`;
+}
 
 export default function Insights() {
 	const { scrollTo } = useLocalSearchParams<{ scrollTo?: SectionKey }>();
@@ -24,6 +90,7 @@ export default function Insights() {
 	const [sectionY, setSectionY] = useState<Record<SectionKey, number>>({
 		foundation: 0,
 		trend: 0,
+		rain: 0,
 	});
 
 	const makeOnLayout = (key: SectionKey) => (e: LayoutChangeEvent) => {
@@ -41,32 +108,82 @@ export default function Insights() {
 		return () => clearTimeout(id);
 	}, [scrollTo, sectionY]);
 
-	const moisture6h = [
-		0.22, 0.23, 0.24, 0.268, 0.27, 0.31, 0.373, 0.375, 0.376, 0.378, 0.38,
-		0.381, 0.384, 0.386, 0.387, 0.389, 0.39, 0.391, 0.45, 0.5, 0.52, 0.54, 0.55,
-		0.6, 0.577,
-	];
+	const siteRow = useMemo(() => getSiteRow(SITE_ID), []);
+	const moistureRows = useMemo(() => getMoisture6hRows(SITE_ID), []);
+
+	// Moisture trend series (0..1)
+	const moisture6h = useMemo(() => {
+		const values = moistureRows
+			.map((r) => asNumber(r.sat_avg))
+			.filter((v) => Number.isFinite(v))
+			.map((v) => clamp01(v));
+
+		// Ensure chart always has something
+		return values.length > 0 ? values : [0.0];
+	}, [moistureRows]);
+
 	const delta = moisture6h.at(-1)! - moisture6h[0];
 	const deltaText = `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}%`;
+	const peakText = `${(Math.max(...moisture6h) * 100).toFixed(1)}%`;
 
-	const rainfallData: RainfallData = {
-		forecastedDepth24h: 2.1,
-		idfDepth24h: 60.91,
-	};
-	const nodes: SensorNodesMap = {
-		front: { side: 'Front', moisture: 60.0, severity: 'Elevated' },
-		left: { side: 'Left', moisture: 55.0, severity: 'Normal' },
-		back: { side: 'Back', moisture: 50.0, severity: 'Normal' },
-		right: { side: 'Right', moisture: 66.0, severity: 'Elevated' },
-	};
-	const avgMoisture = 57.7;
-	const symmetry: Influence = 'High';
-	const symmetryNote =
-		symmetry === 'High'
-			? 'Moisture is consistent around the foundation.'
-			: symmetry === 'Moderate'
-			? 'Moisture differs by side; monitor the highest side during rainfall.'
-			: 'Moisture varies strongly by side; use side readings to guide monitoring.';
+	// Foundation nodes from per-side sat values (0..1)
+	const satFront = clamp01(asNumber(siteRow.sat_front));
+	const satBack = clamp01(asNumber(siteRow.sat_back));
+	const satLeft = clamp01(asNumber(siteRow.sat_left));
+	const satRight = clamp01(asNumber(siteRow.sat_right));
+
+	const nodes: SensorNodesMap = useMemo(() => {
+		return {
+			front: {
+				side: 'Front',
+				moisture: satToPercent(satFront),
+				severity: classifySeverityFromSat(satFront),
+			},
+			left: {
+				side: 'Left',
+				moisture: satToPercent(satLeft),
+				severity: classifySeverityFromSat(satLeft),
+			},
+			back: {
+				side: 'Back',
+				moisture: satToPercent(satBack),
+				severity: classifySeverityFromSat(satBack),
+			},
+			right: {
+				side: 'Right',
+				moisture: satToPercent(satRight),
+				severity: classifySeverityFromSat(satRight),
+			},
+		};
+	}, [satFront, satBack, satLeft, satRight]);
+
+	const avgMoisture = satToPercent(clamp01(asNumber(siteRow.sat_avg)));
+
+	const symmetry: Influence = useMemo(() => {
+		return classifySymmetryFromSides([satFront, satBack, satLeft, satRight]);
+	}, [satFront, satBack, satLeft, satRight]);
+
+	const symmetryNote = useMemo(() => {
+		return symmetryNoteFromSides(symmetry, {
+			Front: satFront,
+			Back: satBack,
+			Left: satLeft,
+			Right: satRight,
+		});
+	}, [symmetry, satFront, satBack, satLeft, satRight]);
+
+	// Rainfall context from CSV
+	const rainfallData: RainfallData = useMemo(() => {
+		return {
+			forecastedDepth24h: asNumber(siteRow.forecast_24h_total_mm),
+			idfDepth24h: asNumber(siteRow.IDF_24h_2yr_mm),
+		};
+	}, [siteRow]);
+
+	const lastUpdatedIso = siteRow.last_updated_iso || '';
+	const lastUpdatedText = lastUpdatedIso
+		? `Last updated: ${formatMinutesAgo(lastUpdatedIso)}`
+		: 'Last updated: unknown';
 
 	return (
 		<LinearGradient
@@ -98,7 +215,6 @@ export default function Insights() {
 				<View
 					onLayout={makeOnLayout('trend')}
 					style={styles.card}>
-					{/* TODO: add info icon with details drawer */}
 					<Text style={styles.cardTitle}>Soil moisture trend</Text>
 					<Text style={styles.mutedDesc}>
 						Last 6 hours · all sides averaged
@@ -111,15 +227,14 @@ export default function Insights() {
 						</View>
 						<View style={styles.statItem}>
 							<Text style={styles.metaLabel}>Peak</Text>
-							<Text style={styles.metaValue}>
-								{(Math.max(...moisture6h) * 100).toFixed(1)}%
-							</Text>
+							<Text style={styles.metaValue}>{peakText}</Text>
 						</View>
 					</View>
 				</View>
 
-				<View style={styles.card}>
-					{/* TODO: add info icon with details drawer */}
+				<View
+					onLayout={makeOnLayout('rain')}
+					style={styles.card}>
 					<Text style={styles.cardTitle}>Rain intensity context</Text>
 					<Text style={styles.mutedDesc}>
 						Forecast rainfall compared to IDF reference levels.
@@ -131,8 +246,7 @@ export default function Insights() {
 						IDF curves are historical design references used for context only.
 					</Text>
 				</View>
-
-				<Text style={styles.lastUpdated}>Last updated: 12 minutes ago</Text>
+				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
 			</ScrollView>
 		</LinearGradient>
 	);

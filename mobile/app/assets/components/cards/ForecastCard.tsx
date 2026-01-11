@@ -2,16 +2,20 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import colors from '../../../config/theme';
-import ForecastChart from '../utilities/ForecastChart';
+import ForecastChart from '../graphics/ForecastChart';
 
-export default function ForecastCard() {
-	const values = [
-		0.0, 0.0, 0.1, 0.2, 0.2, 0.2, 0.3, 0.2, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-		0.1, 0.1, 0.2, 0.3, 0.1, 0.0, 0.0, 0.0, 0.0,
-	];
-	const total24h = values.reduce((a, b) => a + b, 0);
-	const valueText = `~${total24h.toFixed(1)} mm`;
-	const data = values.map((value, index) => ({
+interface ForecastCardProps {
+	total24hMm: number;
+	hourlyMm: number[];
+	onPress: () => void;
+}
+
+export default function ForecastCard({
+	total24hMm,
+	hourlyMm,
+}: ForecastCardProps) {
+	const valueText = `~${total24hMm.toFixed(1)} mm`;
+	const data = hourlyMm.map((value, index) => ({
 		value,
 		label: `${index + 1}h`,
 	}));

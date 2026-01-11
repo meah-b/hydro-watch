@@ -1,20 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import {
-	Dimensions,
-	Linking,
-	Pressable,
-	StyleSheet,
-	Text,
-	View,
-} from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import colors from '../../../config/theme';
 
 interface MetricCardProps {
 	title: string;
 	value: string;
 	desc: string;
-	isWarning?: boolean;
 	onPress?: () => void;
 }
 
@@ -30,8 +22,8 @@ export default function SmallMetricCard(props: MetricCardProps) {
 
 	return (
 		<Pressable
-			style={styles.card}
-			onPress={onPress}>
+			onPress={onPress}
+			style={({ pressed }) => [styles.card, { opacity: pressed ? 0.6 : 1 }]}>
 			<Text style={styles.cardTitle}>{title}</Text>
 			<Text style={styles.metricValue}>{value}</Text>
 			<Text style={styles.mutedDesc}>{desc}</Text>
@@ -40,35 +32,43 @@ export default function SmallMetricCard(props: MetricCardProps) {
 }
 
 export function MediumMetricCard(props: MetricCardProps) {
-	const { title, value, desc, isWarning } = props;
-
-	const handlePress = () => {
-		Linking.openURL('https://weather.gc.ca/warnings');
-	};
+	const { title, value, desc, onPress } = props;
 
 	return (
-		<View style={[styles.card, isWarning ? styles.warningCard : null]}>
+		<Pressable
+			onPress={onPress}
+			style={({ pressed }) => [
+				styles.card,
+				onPress ? { opacity: pressed ? 0.6 : 1 } : null,
+			]}>
 			<Text style={styles.cardTitle}>{title}</Text>
-
-			{isWarning ? (
-				<Pressable
-					onPress={handlePress}
-					style={({ pressed }) => [
-						styles.linkWrapper,
-						{ opacity: pressed ? 0.6 : 1 },
-					]}>
-					<Text style={[styles.actionPrimary, styles.actionLink]}>{value}</Text>
-					<Ionicons
-						name='open-outline'
-						size={20}
-					/>
-				</Pressable>
-			) : (
-				<Text style={styles.actionPrimary}>{value}</Text>
-			)}
-
+			<Text style={styles.actionPrimary}>{value}</Text>
 			<Text style={styles.mutedDesc}>{desc}</Text>
-		</View>
+		</Pressable>
+	);
+}
+
+export function WarningCard(props: MetricCardProps) {
+	const { title, value, desc, onPress } = props;
+
+	return (
+		<Pressable
+			onPress={onPress}
+			style={({ pressed }) => [
+				styles.card,
+				styles.warningCard,
+				{ opacity: pressed ? 0.6 : 1 },
+			]}>
+			<Text style={styles.cardTitle}>{title}</Text>
+			<View style={styles.linkWrapper}>
+				<Text style={[styles.actionPrimary, styles.actionLink]}>{value}</Text>
+				<Ionicons
+					name='open-outline'
+					size={20}
+				/>
+			</View>
+			<Text style={styles.mutedDesc}>{desc}</Text>
+		</Pressable>
 	);
 }
 
@@ -77,8 +77,8 @@ export function LargeMetricCard(props: MetricCardProps) {
 
 	return (
 		<Pressable
-			style={styles.card}
-			onPress={onPress}>
+			onPress={onPress}
+			style={({ pressed }) => [styles.card, { opacity: pressed ? 0.6 : 1 }]}>
 			<Text style={styles.cardLabel}>{title}</Text>
 			<Text style={styles.heroValue}>{value}</Text>
 			<Text style={styles.cardDesc}>{desc}</Text>

@@ -3,14 +3,15 @@ import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MediumMetricCard } from '../assets/components/cards/MetricCard';
-import RiskGauge from '../assets/components/utilities/RiskGauge';
+import RiskGauge from '../assets/components/graphics/RiskGauge';
+import { getSiteRow } from '../assets/utilities/fakeDbParse';
+import {
+	buildRiskDrivers,
+	getRiskLevel,
+	getRiskScore,
+} from '../assets/utilities/riskDerivations';
 import colors from '../config/theme';
-import type {
-	DriverItem,
-	DriverKey,
-	Influence,
-	RiskLevel,
-} from '../config/types';
+import type { DriverKey, Influence, RiskLevel } from '../config/types';
 
 const INFLUENCE_PILL_BG: Record<Influence, string> = {
 	Low: colors.green200,
@@ -87,29 +88,18 @@ function InfluenceRow(props: {
 }
 
 export default function Risk() {
-	const riskLevel = 'Moderate';
-	const riskScore = 32.98;
+	const row = getSiteRow('site_001');
+
+	const riskScore = getRiskScore(row);
+	const riskLevel = getRiskLevel(riskScore);
 
 	const driverRows = useMemo(() => {
-		const drivers: DriverItem[] = [
-			{ key: 'soilMoisture', title: 'Soil Moisture', value: 'High' },
-			{
-				key: 'siteSensitivity',
-				title: 'Site Sensitivity',
-				value: 'Low',
-			},
-			{
-				key: 'forecastedRainfall',
-				title: 'Forecasted Rainfall',
-				value: 'Moderate',
-			},
-		];
-
+		const drivers = buildRiskDrivers(row);
 		return drivers.map((d) => ({
 			...d,
 			desc: influenceDesc(d.key, d.value),
 		}));
-	}, []);
+	}, [row]);
 
 	return (
 		<LinearGradient

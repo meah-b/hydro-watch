@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import AppHeader from '../assets/components/utilities/Header';
+import AppHeader from '../assets/components/graphics/Header';
 import colors from '../config/theme';
 
 export default function TabsLayout() {

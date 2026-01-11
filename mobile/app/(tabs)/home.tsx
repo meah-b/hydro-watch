@@ -1,16 +1,93 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import {
+	Linking,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from 'react-native';
+
 import ForecastCard from '../assets/components/cards/ForecastCard';
 import SmallMetricCard, {
 	LargeMetricCard,
 	MediumMetricCard,
+	WarningCard,
 } from '../assets/components/cards/MetricCard';
+
+import { getSiteRow } from '../assets/utilities/fakeDbParse';
+import {
+	asBoolean,
+	asJsonArrayNumber,
+	asNumber,
+} from '../assets/utilities/fakeDbTypes';
+import { getRiskLevel } from '../assets/utilities/riskDerivations';
 import colors from '../config/theme';
 
+const SITE_ID = 'site_001';
+
+function formatSatPercent(sat01: number): string {
+	const pct = Math.max(0, Math.min(100, sat01 * 100));
+	return `${pct.toFixed(1)}%`;
+}
+
+function formatMinutesAgo(iso: string): string {
+	const t = Date.parse(iso);
+	if (!Number.isFinite(t)) return 'unknown';
+
+	const diffMs = Date.now() - t;
+	const diffMin = Math.max(0, Math.round(diffMs / (60 * 1000)));
+
+	if (diffMin < 1) return 'just now';
+	if (diffMin === 1) return '1 minute ago';
+	if (diffMin < 60) return `${diffMin} minutes ago`;
+
+	const diffHr = Math.floor(diffMin / 60);
+	if (diffHr === 1) return '1 hour ago';
+	return `${diffHr} hours ago`;
+}
+
 export default function Home() {
+	const row = useMemo(() => getSiteRow(SITE_ID), []);
+	// TODO: later source from AWS (warning table / Environment Canada API)
 	const hasActiveWarning = true;
+	const locationLabel = row.location_label;
+	const riskScore = asNumber(row.risk_score);
+	const riskLevel = getRiskLevel(riskScore);
+
+	// TODO: replace with “1 sentence per category” mapping
+	const riskDesc =
+		riskLevel === 'Low'
+			? 'Low flood risk based on current conditions.'
+			: riskLevel === 'Moderate'
+			? 'Elevated due to soil saturation and rainfall.'
+			: riskLevel === 'High'
+			? 'High risk due to wet soil and forecast rainfall.'
+			: 'Severe risk. Prepare for potential flooding.';
+
+	const satAvg = asNumber(row.sat_avg);
+	const soilMoistureValue = Number.isFinite(satAvg)
+		? formatSatPercent(satAvg)
+		: '—';
+
+	// TODO: pull symmetry from CSV later (or calculate in app from per-side sats)
+	const siteSymmetryValue = 'High';
+	const siteSymmetryDesc = 'Moisture consistent around foundation';
+
+	const sensorsOk = asBoolean(row.qc_all_sensors_normal);
+	const sensorStatusValue = sensorsOk
+		? '4/4 sensors reporting normally.'
+		: 'Sensor issue detected.';
+
+	const lastUpdatedIso = row.last_updated_iso || row.timestamp_iso || '';
+	const lastUpdatedText = lastUpdatedIso
+		? `Last updated: ${formatMinutesAgo(lastUpdatedIso)}`
+		: 'Last updated: unknown';
+
+	const forecastTotal = asNumber(row.forecast_24h_total_mm);
+	const forecastHourly = asJsonArrayNumber(row.forecast_24h_hourly_mm);
 
 	return (
 		<LinearGradient
@@ -26,20 +103,20 @@ export default function Home() {
 						opacity: pressed ? 0.5 : 1,
 					})}
 					onPress={() => {}}>
-					<Text style={styles.locationText}>London, ON</Text>
+					<Text style={styles.locationText}>{locationLabel}</Text>
 				</Pressable>
 				<LargeMetricCard
 					title='Flood risk'
-					value='MODERATE'
-					desc='Elevated due to soil saturation and rainfall'
+					value={riskLevel.toUpperCase()}
+					desc={riskDesc}
 					onPress={() => router.push('/(tabs)/risk')}
 				/>
 
 				<View style={styles.twoColRow}>
 					<SmallMetricCard
 						title='Soil moisture'
-						value='57.7%'
-						desc='Near field capacity for clay loam soils'
+						value={soilMoistureValue}
+						desc='Based on normalized average saturation'
 						onPress={() =>
 							router.push({
 								pathname: '/(tabs)/insights',
@@ -50,8 +127,8 @@ export default function Home() {
 
 					<SmallMetricCard
 						title='Site symmetry'
-						value='High'
-						desc='Moisture consistent around foundation'
+						value={siteSymmetryValue}
+						desc={siteSymmetryDesc}
 						onPress={() =>
 							router.push({
 								pathname: '/(tabs)/insights',
@@ -61,24 +138,36 @@ export default function Home() {
 					/>
 				</View>
 
-				<ForecastCard />
+				<ForecastCard
+					total24hMm={forecastTotal}
+					hourlyMm={forecastHourly}
+					onPress={() =>
+						router.push({
+							pathname: '/(tabs)/insights',
+							params: { scrollTo: 'rain' },
+						})
+					}
+				/>
 
 				{hasActiveWarning && (
-					<MediumMetricCard
+					<WarningCard
 						title='Flood warning issued'
 						value='Environment Canada'
 						desc='Valid until Jan 1, 6:00 AM'
-						isWarning={true}
+						onPress={() => {
+							Linking.openURL('https://weather.gc.ca/warnings');
+						}}
 					/>
 				)}
 
 				<MediumMetricCard
 					title='Sensor Status'
-					value='4/4 sensors reporting normally.'
+					value={sensorStatusValue}
 					desc='Estimated battery life: 6 months'
+					onPress={() => {}}
 				/>
 
-				<Text style={styles.lastUpdated}>Last updated: 12 minutes ago</Text>
+				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
 			</ScrollView>
 		</LinearGradient>
 	);
