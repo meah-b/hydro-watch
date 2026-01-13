@@ -1,4 +1,4 @@
-import colors from '@/app/config/theme';
+import colors from '@/config/theme';
 import React, { useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, {

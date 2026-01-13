@@ -1,4 +1,4 @@
-import colors from '@/app/config/theme';
+import colors from '@/config/theme';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';

@@ -2,16 +2,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { MediumMetricCard } from '../assets/components/cards/MetricCard';
-import RiskGauge from '../assets/components/graphics/RiskGauge';
-import { getSiteRow } from '../assets/utilities/fakeDbParse';
+import { MediumMetricCard } from '../../assets/components/cards/MetricCard';
+import RiskGauge from '../../assets/components/graphics/RiskGauge';
+import { getSiteRow } from '../../assets/utilities/fakeDbParse';
 import {
 	buildRiskDrivers,
 	getRiskLevel,
 	getRiskScore,
-} from '../assets/utilities/riskDerivations';
-import colors from '../config/theme';
-import type { DriverKey, Influence, RiskLevel } from '../config/types';
+} from '../../assets/utilities/riskDerivations';
+import colors from '../../config/theme';
+import type { DriverKey, Influence, RiskLevel } from '../../config/types';
 
 const INFLUENCE_PILL_BG: Record<Influence, string> = {
 	Low: colors.green200,

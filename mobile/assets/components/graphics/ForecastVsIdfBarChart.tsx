@@ -1,5 +1,5 @@
-import colors from '@/app/config/theme';
-import { RainfallData } from '@/app/config/types';
+import colors from '@/config/theme';
+import { RainfallData } from '@/config/types';
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { G, Line, Rect, Text as SvgText } from 'react-native-svg';

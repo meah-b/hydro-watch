@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import React from 'react';
-import AppHeader from '../assets/components/graphics/Header';
-import colors from '../config/theme';
+import AppHeader from '../../assets/components/graphics/Header';
+import colors from '../../config/theme';
 
 export default function TabsLayout() {
 	return (
@@ -12,8 +12,8 @@ export default function TabsLayout() {
 				headerShown: true,
 				header: () => (
 					<AppHeader
-						onPressNotifications={() => {}}
-						onPressMenu={() => {}}
+						onPressNotifications={() => router.push('/(modals)/notifications')}
+						onPressSettings={() => router.push('/(modals)/settings')}
 					/>
 				),
 				headerTransparent: true,

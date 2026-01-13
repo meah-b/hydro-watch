@@ -8,13 +8,16 @@ import {
 	Text,
 	View,
 } from 'react-native';
-import ForecastVsIdfBarChart from '../assets/components/graphics/ForecastVsIdfBarChart';
-import FoundationMoistureMap from '../assets/components/graphics/FoundationMoistureMap';
-import SoilMoistureChartSvg from '../assets/components/graphics/SoilMoistureChart';
-import { getMoisture6hRows, getSiteRow } from '../assets/utilities/fakeDbParse';
-import { asNumber } from '../assets/utilities/fakeDbTypes';
-import colors from '../config/theme';
-import { Influence, RainfallData, SensorNodesMap } from '../config/types';
+import ForecastVsIdfBarChart from '../../assets/components/graphics/ForecastVsIdfBarChart';
+import FoundationMoistureMap from '../../assets/components/graphics/FoundationMoistureMap';
+import SoilMoistureChartSvg from '../../assets/components/graphics/SoilMoistureChart';
+import {
+	getMoisture6hRows,
+	getSiteRow,
+} from '../../assets/utilities/fakeDbParse';
+import { asNumber } from '../../assets/utilities/fakeDbTypes';
+import colors from '../../config/theme';
+import { Influence, RainfallData, SensorNodesMap } from '../../config/types';
 
 type SectionKey = 'foundation' | 'trend' | 'rain';
 

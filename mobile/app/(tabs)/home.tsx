@@ -10,21 +10,21 @@ import {
 	View,
 } from 'react-native';
 
-import ForecastCard from '../assets/components/cards/ForecastCard';
+import ForecastCard from '../../assets/components/cards/ForecastCard';
 import SmallMetricCard, {
 	LargeMetricCard,
 	MediumMetricCard,
 	WarningCard,
-} from '../assets/components/cards/MetricCard';
+} from '../../assets/components/cards/MetricCard';
 
-import { getSiteRow } from '../assets/utilities/fakeDbParse';
+import { getSiteRow } from '../../assets/utilities/fakeDbParse';
 import {
 	asBoolean,
 	asJsonArrayNumber,
 	asNumber,
-} from '../assets/utilities/fakeDbTypes';
-import { getRiskLevel } from '../assets/utilities/riskDerivations';
-import colors from '../config/theme';
+} from '../../assets/utilities/fakeDbTypes';
+import { getRiskLevel } from '../../assets/utilities/riskDerivations';
+import colors from '../../config/theme';
 
 const SITE_ID = 'site_001';
 

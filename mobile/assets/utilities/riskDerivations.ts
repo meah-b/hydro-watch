@@ -1,4 +1,4 @@
-import type { DriverItem, Influence, RiskLevel } from '@/app/config/types';
+import type { DriverItem, Influence, RiskLevel } from '@/config/types';
 import type { FakeDbRow } from './fakeDbParse';
 import { asNumber } from './fakeDbTypes';
 

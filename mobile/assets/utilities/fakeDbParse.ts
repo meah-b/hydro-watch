@@ -1,4 +1,4 @@
-import { MOISTURE_6H_CSV, SITES_CSV } from '@/app/config/fakeDbCsv';
+import { MOISTURE_6H_CSV, SITES_CSV } from '@/config/fakeDbCsv';
 
 export type FakeDbRow = Record<string, string>;
 

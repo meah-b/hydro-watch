@@ -1,5 +1,5 @@
-import colors from '@/app/config/theme';
-import { SensorNode, SensorNodesMap } from '@/app/config/types';
+import colors from '@/config/theme';
+import { SensorNode, SensorNodesMap } from '@/config/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useMemo, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';

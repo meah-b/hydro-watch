@@ -1,4 +1,4 @@
-import colors from '@/app/config/theme';
+import colors from '@/config/theme';
 import React from 'react';
 import Svg, {
 	Circle,

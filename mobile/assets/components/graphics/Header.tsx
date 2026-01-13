@@ -4,13 +4,13 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import colors from '../../../config/theme';
 
 type Props = {
-	onPressNotifications?: () => void;
-	onPressMenu?: () => void;
+	onPressNotifications: () => void;
+	onPressSettings: () => void;
 };
 
 export default function AppHeader({
 	onPressNotifications,
-	onPressMenu,
+	onPressSettings,
 }: Props) {
 	return (
 		<View style={styles.topBar}>
@@ -37,13 +37,13 @@ export default function AppHeader({
 				</Pressable>
 
 				<Pressable
-					onPress={onPressMenu}
+					onPress={onPressSettings}
 					style={({ pressed }) => [
 						styles.iconStub,
 						{ opacity: pressed ? 0.5 : 1 },
 					]}>
 					<Ionicons
-						name='menu'
+						name='settings-outline'
 						size={24}
 						color={colors.black}
 					/>
