@@ -13,17 +13,28 @@ def _to_decimal(x: float) -> Decimal:
 
 def ddb_number_to_float(attr: Any) -> float:
     """
-    Convert a low-level DynamoDB attribute value (e.g. {"N": "0.28"}) into float.
-    Raises with a clear message if the shape is unexpected.
+    Convert Dynamo number to float.
+
+    Supports:
+      - boto3 resource style: Decimal("0.28")
+      - low-level client style: {"N": "0.28"}
+      - raw Python int/float (just in case)
     """
-    if not isinstance(attr, Mapping):
-        raise TypeError(f"Expected DynamoDB attribute map like {{'N': '...'}}, got {type(attr)}")
+    if isinstance(attr, Decimal):
+        return float(attr)
 
-    n = attr.get("N")
-    if n is None:
-        raise TypeError(f"Expected DynamoDB Number attr with key 'N', got: {attr}")
+    if isinstance(attr, (int, float)):
+        return float(attr)
 
-    return float(n)
+    if isinstance(attr, Mapping):
+        n = attr.get("N")
+        if n is None:
+            raise TypeError(f"Expected DynamoDB Number attr with key 'N', got: {attr}")
+        return float(n)
+
+    raise TypeError(
+        f"Expected Decimal or {{'N': '...'}} for Dynamo number, got {type(attr)}: {attr}"
+    )
 
 def to_dynamo(value: Any) -> Any:
     """
@@ -101,7 +112,7 @@ class AwsStorage:
         """
         return self.latest_table.put_item(Item=to_dynamo(dict(item)))
 
-    def append_moisture_point(self, site_id: str, timestamp_iso: str, sat_avg: float) -> Mapping[str, Any]:
+    def append_moisture_point(self, site_id: str, timestamp_iso: str, max_sat: float) -> Mapping[str, Any]:
         """
         Append one 15-minute moisture point for trend charts.
         """
@@ -110,7 +121,7 @@ class AwsStorage:
                 {
                     "site_id": site_id,
                     "timestamp_iso": timestamp_iso,
-                    "sat_avg": sat_avg,
+                    "max_sat": max_sat,
                 }
             )
         )
@@ -121,9 +132,9 @@ class AwsStorage:
             raise RuntimeError(f"No SiteConfig for {site_id}")
         return resp["Item"]
     
-    def get_sat_avg_1h_ago(self, site_id: str) -> float:
+    def get_sat_1h_ago(self, site_id: str, now_iso: str) -> float:
         one_hour_ago = (
-            datetime.now(timezone.utc) - timedelta(hours=1)
+            datetime.fromisoformat(now_iso) - timedelta(hours=1)
         ).isoformat().replace("+00:00", "Z")
 
         resp = self.history_table.query(
@@ -133,11 +144,11 @@ class AwsStorage:
             Limit=1,
         )
 
-        item = resp["Items"][0]
-        if not item:
-            raise RuntimeError("No moisture history available for 1h-ago lookup")
-
-        return ddb_number_to_float(item["sat_avg"])
+        items = resp.get("Items", [])
+        if not items:
+            return 0.0
+        item = items[0]
+        return ddb_number_to_float(item["max_sat"])
     
     def get_latest_two_raw_payloads(self, site_id: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         resp = self.raw_table.query(
@@ -154,3 +165,7 @@ class AwsStorage:
         previous = items[1]
 
         return latest, previous
+    
+    def put_raw_payload(self, item: dict) -> Mapping[str, Any]:
+        return self.raw_table.put_item(Item=to_dynamo(dict(item)))
+

@@ -85,9 +85,10 @@ def QC_samples_and_summarize(
     if not current_reading:
         raise ValueError("QC_samples_and_summarize: no samples provided.")
 
-    ts_ok, ts_fields = _validate_timestamp(timestamp)
-    if not ts_ok:
-        raise ValueError(f"QC_samples_and_summarize: bad timestamp ({ts_fields['timestamp_reason']})")
+    ## Disable for demo purposes
+    # ts_ok, ts_fields = _validate_timestamp(timestamp)
+    # if not ts_ok:
+    #     raise ValueError(f"QC_samples_and_summarize: bad timestamp ({ts_fields['timestamp_reason']})")
 
     sensors = ["front", "back", "left", "right"]
 
@@ -144,7 +145,7 @@ def QC_samples_and_summarize(
     all_sensors_normal = all_sensors_present and (len(fallback_sensors) == 0) and (len(failed_sensors) == 0)
 
     qc_report: Dict[str, Any] = {
-        **ts_fields,
+        # **ts_fields,
         "all_sensors_present": all_sensors_present,
         "all_sensors_normal": all_sensors_normal,
         "missing_sensors": missing_sensors,

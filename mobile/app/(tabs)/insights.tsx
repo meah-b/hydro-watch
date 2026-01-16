@@ -1,3 +1,8 @@
+import LoadingScreen from '@/assets/components/screens/loading';
+import getLastUpdatedText from '@/assets/utilities/getLastUpdatedText';
+import { getLatestSiteState } from '@/assets/utilities/getLatestSiteState';
+import classifySymmetryFromSides from '@/assets/utilities/getSiteSymmetryInfo';
+import { classifySeverityFromSat } from '@/assets/utilities/riskDerivations';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,88 +13,77 @@ import {
 	Text,
 	View,
 } from 'react-native';
+
+import getMoisture6hRows from '@/assets/utilities/getSoilMoistureHistory';
 import ForecastVsIdfBarChart from '../../assets/components/graphics/ForecastVsIdfBarChart';
 import FoundationMoistureMap from '../../assets/components/graphics/FoundationMoistureMap';
 import SoilMoistureChartSvg from '../../assets/components/graphics/SoilMoistureChart';
-import {
-	getMoisture6hRows,
-	getSiteRow,
-} from '../../assets/utilities/fakeDbParse';
-import { asNumber } from '../../assets/utilities/fakeDbTypes';
 import colors from '../../config/theme';
-import { Influence, RainfallData, SensorNodesMap } from '../../config/types';
-
-type SectionKey = 'foundation' | 'trend' | 'rain';
-
-const SITE_ID = 'site_001';
-
-function clamp01(x: number): number {
-	return Math.max(0, Math.min(1, x));
-}
-
-function satToPercent(sat: number): number {
-	return clamp01(sat) * 100;
-}
-
-function classifySeverityFromSat(sat: number): 'Normal' | 'Elevated' | 'High' {
-	// Stub thresholds, tweak later
-	if (sat < 0.2) return 'Normal';
-	if (sat < 0.6) return 'Elevated';
-	return 'High';
-}
-
-function classifySymmetryFromSides(sats: number[]): Influence {
-	// sats are 0..1
-	const minV = Math.min(...sats);
-	const maxV = Math.max(...sats);
-	const spread = maxV - minV;
-
-	// Stub thresholds (difference in saturation fraction)
-	if (spread <= 0.08) return 'High';
-	if (spread <= 0.2) return 'Moderate';
-	return 'Low';
-}
+import {
+	Influence,
+	MoistureRow,
+	SectionKey,
+	SensorNodesMap,
+	SiteState,
+} from '../../config/types';
 
 function symmetryNoteFromSides(
 	sym: Influence,
 	satsBySide: Record<string, number>
 ): string {
-	// Identify wettest sides for a more specific note
 	const entries = Object.entries(satsBySide).sort((a, b) => b[1] - a[1]);
 	const [wet1, wet2] = entries.slice(0, 2);
 
 	if (sym === 'Low') {
-		return 'Moisture is consistent around the foundation.';
+		return `Moisture varies strongly by side. The ${wet1[0].toLowerCase()} and ${wet2[0].toLowerCase()} sides of the site are highest. Use side readings to guide monitoring.`;
 	}
 
 	if (sym === 'Moderate') {
 		return `Moisture differs by side; ${wet1[0]} is highest. Monitor during rainfall.`;
 	}
 
-	return `Moisture varies strongly by side; ${wet1[0]} and ${wet2[0]} are highest. Use side readings to guide monitoring.`;
-}
-
-function formatMinutesAgo(iso: string): string {
-	const t = Date.parse(iso);
-	if (!Number.isFinite(t)) return 'unknown';
-
-	const diffMs = Date.now() - t;
-	const diffMin = Math.max(0, Math.round(diffMs / (60 * 1000)));
-
-	if (diffMin < 1) return 'just now';
-	if (diffMin === 1) return '1 minute ago';
-	if (diffMin < 60) return `${diffMin} minutes ago`;
-
-	const diffHr = Math.floor(diffMin / 60);
-	if (diffHr === 1) return '1 hour ago';
-	return `${diffHr} hours ago`;
+	return 'Moisture is consistent around the foundation.';
 }
 
 export default function Insights() {
+	const [state, setState] = useState<SiteState | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [moistureRows, setMoistureRows] = useState<MoistureRow[]>([]);
+
+	useEffect(() => {
+		let mounted = true;
+
+		Promise.all([getLatestSiteState(), getMoisture6hRows()])
+			.then(([siteState, rows]) => {
+				if (!mounted) return;
+				setState(siteState);
+				setMoistureRows(rows);
+			})
+			.catch((e) => {
+				if (!mounted) return;
+
+				setError(e?.message ?? 'Failed to load insights data');
+			})
+			.finally(() => {
+				if (mounted) setLoading(false);
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, []);
+
+	const moisture6h = useMemo(() => {
+		const values = (moistureRows ?? [])
+			.map((r) => Number(r.max_sat))
+			.filter((v) => Number.isFinite(v));
+
+		return values.length > 0 ? values : [0.0];
+	}, [moistureRows]);
+
 	const { scrollTo } = useLocalSearchParams<{ scrollTo?: SectionKey }>();
-
 	const scrollRef = useRef<ScrollView>(null);
-
 	const [sectionY, setSectionY] = useState<Record<SectionKey, number>>({
 		foundation: 0,
 		trend: 0,
@@ -111,56 +105,43 @@ export default function Insights() {
 		return () => clearTimeout(id);
 	}, [scrollTo, sectionY]);
 
-	const siteRow = useMemo(() => getSiteRow(SITE_ID), []);
-	const moistureRows = useMemo(() => getMoisture6hRows(SITE_ID), []);
-
-	// Moisture trend series (0..1)
-	const moisture6h = useMemo(() => {
-		const values = moistureRows
-			.map((r) => asNumber(r.sat_avg))
-			.filter((v) => Number.isFinite(v))
-			.map((v) => clamp01(v));
-
-		// Ensure chart always has something
-		return values.length > 0 ? values : [0.0];
-	}, [moistureRows]);
-
-	const delta = moisture6h.at(-1)! - moisture6h[0];
+	const start = moisture6h[0] ?? 0;
+	const end = moisture6h[moisture6h.length - 1] ?? start;
+	const delta = end - start;
 	const deltaText = `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}%`;
 	const peakText = `${(Math.max(...moisture6h) * 100).toFixed(1)}%`;
 
-	// Foundation nodes from per-side sat values (0..1)
-	const satFront = clamp01(asNumber(siteRow.sat_front));
-	const satBack = clamp01(asNumber(siteRow.sat_back));
-	const satLeft = clamp01(asNumber(siteRow.sat_left));
-	const satRight = clamp01(asNumber(siteRow.sat_right));
+	const satFront = state?.sat_front ?? 0;
+	const satBack = state?.sat_back ?? 0;
+	const satLeft = state?.sat_left ?? 0;
+	const satRight = state?.sat_right ?? 0;
 
 	const nodes: SensorNodesMap = useMemo(() => {
 		return {
 			front: {
 				side: 'Front',
-				moisture: satToPercent(satFront),
+				moisture: satFront * 100,
 				severity: classifySeverityFromSat(satFront),
 			},
 			left: {
 				side: 'Left',
-				moisture: satToPercent(satLeft),
+				moisture: satLeft * 100,
 				severity: classifySeverityFromSat(satLeft),
 			},
 			back: {
 				side: 'Back',
-				moisture: satToPercent(satBack),
+				moisture: satBack * 100,
 				severity: classifySeverityFromSat(satBack),
 			},
 			right: {
 				side: 'Right',
-				moisture: satToPercent(satRight),
+				moisture: satRight * 100,
 				severity: classifySeverityFromSat(satRight),
 			},
 		};
 	}, [satFront, satBack, satLeft, satRight]);
 
-	const avgMoisture = satToPercent(clamp01(asNumber(siteRow.sat_avg)));
+	const avgMoisture = ((satFront + satBack + satLeft + satRight) * 100) / 4;
 
 	const symmetry: Influence = useMemo(() => {
 		return classifySymmetryFromSides([satFront, satBack, satLeft, satRight]);
@@ -175,18 +156,28 @@ export default function Insights() {
 		});
 	}, [symmetry, satFront, satBack, satLeft, satRight]);
 
-	// Rainfall context from CSV
-	const rainfallData: RainfallData = useMemo(() => {
-		return {
-			forecastedDepth24h: asNumber(siteRow.forecast_24h_total_mm),
-			idfDepth24h: asNumber(siteRow.IDF_24h_2yr_mm),
-		};
-	}, [siteRow]);
+	const forecastedDepth24h = state?.forecast_24h_total_mm ?? 0;
+	const idfDepth24h = state?.idf_24h_2yr_mm ?? 0;
+	const lastUpdatedIso = state?.last_updated_iso;
+	const lastUpdatedText = getLastUpdatedText(lastUpdatedIso || '');
 
-	const lastUpdatedIso = siteRow.last_updated_iso || '';
-	const lastUpdatedText = lastUpdatedIso
-		? `Last updated: ${formatMinutesAgo(lastUpdatedIso)}`
-		: 'Last updated: unknown';
+	if (loading) {
+		return (
+			<LoadingScreen
+				state='loading'
+				error={null}
+			/>
+		);
+	}
+
+	if (error || !state) {
+		return (
+			<LoadingScreen
+				state='error'
+				error={error}
+			/>
+		);
+	}
 
 	return (
 		<LinearGradient
@@ -243,7 +234,9 @@ export default function Insights() {
 						Forecast rainfall compared to IDF reference levels.
 					</Text>
 					<View style={styles.barChart}>
-						<ForecastVsIdfBarChart rainfallData={rainfallData} />
+						<ForecastVsIdfBarChart
+							rainfallData={{ forecastedDepth24h, idfDepth24h }}
+						/>
 					</View>
 					<Text style={styles.mutedDesc}>
 						IDF curves are historical design references used for context only.

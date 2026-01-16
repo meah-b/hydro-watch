@@ -1,69 +1,27 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import LoadingScreen from '@/assets/components/screens/loading';
+import {
+	buildInfluenceDesc,
+	buildRiskDesc,
+} from '@/assets/utilities/buildRiskDescription';
+import getLastUpdatedText from '@/assets/utilities/getLastUpdatedText';
+import { getLatestSiteState } from '@/assets/utilities/getLatestSiteState';
 import { MediumMetricCard } from '../../assets/components/cards/MetricCard';
 import RiskGauge from '../../assets/components/graphics/RiskGauge';
-import { getSiteRow } from '../../assets/utilities/fakeDbParse';
 import {
 	buildRiskDrivers,
 	getRiskLevel,
-	getRiskScore,
 } from '../../assets/utilities/riskDerivations';
 import colors from '../../config/theme';
-import type { DriverKey, Influence, RiskLevel } from '../../config/types';
+import type { Influence, SiteState } from '../../config/types';
 
 const INFLUENCE_PILL_BG: Record<Influence, string> = {
 	Low: colors.green200,
 	Moderate: colors.yellow100,
 	High: colors.red200,
-};
-
-const influenceDesc = (key: DriverKey, value: Influence): string => {
-	switch (key) {
-		case 'soilMoisture':
-			switch (value) {
-				case 'High':
-					return 'Soil near field capacity';
-				case 'Moderate':
-					return 'Soil moisture elevated for current conditions';
-				default:
-					return 'Soil moisture currently within normal range';
-			}
-
-		case 'siteSensitivity':
-			switch (value) {
-				case 'High':
-					return 'Site conditions increase runoff potential';
-				case 'Moderate':
-					return 'Some site factors may elevate vulnerability';
-				default:
-					return 'Site factors are not strongly elevating risk';
-			}
-
-		case 'forecastedRainfall':
-			switch (value) {
-				case 'High':
-					return 'Heavier rainfall expected in the next 24 hours';
-				case 'Moderate':
-					return 'Rain expected within the next 24 hours';
-				default:
-					return 'Low rainfall expected in the near term';
-			}
-	}
-};
-
-const riskMeaning = (risk: RiskLevel): string => {
-	switch (risk) {
-		case 'Low':
-			return 'Conditions are stable and flood risk is low. Continue normal monitoring.';
-		case 'Moderate':
-			return 'Conditions may support localized water accumulation if rainfall increases. Monitoring is recommended, especially during rainfall.';
-		case 'High':
-			return 'Conditions indicate elevated flood potential. Closely monitor updates and follow official guidance if warnings are issued.';
-		case 'Severe':
-			return 'Conditions indicate a high likelihood of flooding impacts. Take precautions and follow official warnings and evacuation guidance if issued.';
-	}
 };
 
 function InfluenceRow(props: {
@@ -88,18 +46,63 @@ function InfluenceRow(props: {
 }
 
 export default function Risk() {
-	const row = getSiteRow('site_001');
+	const [state, setState] = useState<SiteState | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-	const riskScore = getRiskScore(row);
+	useEffect(() => {
+		let mounted = true;
+
+		getLatestSiteState()
+			.then((data) => {
+				if (mounted) setState(data);
+			})
+			.catch((e) => {
+				if (mounted) setError(e.message ?? 'Failed to load site state');
+			})
+			.finally(() => {
+				if (mounted) setLoading(false);
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, []);
+
+	const riskScore = Number((state?.risk_score ?? NaN).toFixed(0));
 	const riskLevel = getRiskLevel(riskScore);
+	const lastUpdatedIso = state?.last_updated_iso;
+	const lastUpdatedText = getLastUpdatedText(lastUpdatedIso || '');
 
 	const driverRows = useMemo(() => {
-		const drivers = buildRiskDrivers(row);
+		const drivers = buildRiskDrivers(
+			state?.base_soil_risk,
+			state?.site_sensitivity_factor,
+			state?.storm_factor
+		);
 		return drivers.map((d) => ({
 			...d,
-			desc: influenceDesc(d.key, d.value),
+			desc: buildInfluenceDesc(d.key, d.value),
 		}));
-	}, [row]);
+	}, [state]);
+
+	if (loading) {
+		return (
+			<LoadingScreen
+				state='loading'
+				error={null}
+			/>
+		);
+	}
+
+	if (error || !state) {
+		return (
+			<LoadingScreen
+				state='error'
+				error={error}
+			/>
+		);
+	}
 
 	return (
 		<LinearGradient
@@ -118,7 +121,7 @@ export default function Risk() {
 						<RiskGauge score={riskScore} />
 						<Text style={styles.mutedDesc}>Risk score: {riskScore} / 100</Text>
 					</View>
-					<Text style={styles.cardDesc}>{riskMeaning(riskLevel)}</Text>
+					<Text style={styles.cardDesc}>{buildRiskDesc(riskLevel)}</Text>
 				</View>
 				<View style={styles.card}>
 					<Text style={styles.cardTitle}>Current risk drivers</Text>
@@ -138,13 +141,14 @@ export default function Risk() {
 					</Text>
 				</View>
 
+				{/* TODO */}
 				<MediumMetricCard
 					title='Recommended action'
 					value='No immediate action required'
 					desc='Monitor conditions this evening'
 				/>
 
-				<Text style={styles.lastUpdated}>Last updated: 12 minutes ago</Text>
+				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
 			</ScrollView>
 		</LinearGradient>
 	);

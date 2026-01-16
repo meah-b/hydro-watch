@@ -14,17 +14,22 @@ import {
 	TextInput,
 	View,
 } from 'react-native';
-import { signInAws } from '../../assets/utilities/auth';
-import getSiteConfig from '../../assets/utilities/getSiteConfig';
+import { signUpAws } from '../../assets/utilities/auth';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function LoginScreen() {
+export default function Signup() {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
+	const [confirm, setConfirm] = useState('');
 	const [showPw, setShowPw] = useState(false);
+	const [showConfirm, setShowConfirm] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
-	const [touched, setTouched] = useState({ email: false, password: false });
+	const [touched, setTouched] = useState({
+		email: false,
+		password: false,
+		confirm: false,
+	});
 
 	const emailError = useMemo(() => {
 		if (!touched.email) return '';
@@ -40,52 +45,38 @@ export default function LoginScreen() {
 		return '';
 	}, [password, touched.password]);
 
+	const confirmError = useMemo(() => {
+		if (!touched.confirm) return '';
+		if (!confirm) return 'Please confirm your password.';
+		if (confirm !== password) return 'Passwords do not match.';
+		return '';
+	}, [confirm, password, touched.confirm]);
+
 	const canSubmit =
 		!submitting &&
 		!!email.trim() &&
+		EMAIL_RE.test(email.trim()) &&
 		password.length >= 8 &&
+		confirm === password &&
 		!emailError &&
-		!passwordError;
-
-	async function routeAfterSignIn() {
-		// Decide whether we go to onboarding or home
-		try {
-			const cfg = await getSiteConfig();
-			const hasLocation =
-				!!cfg && typeof cfg.lat === 'number' && typeof cfg.lon === 'number';
-
-			if (!hasLocation) {
-				router.replace('/(auth)/onboarding');
-				return;
-			}
-
-			router.replace('/(tabs)/home');
-		} catch (e: any) {
-			// If config lookup fails, fail "safe": still let them in,
-			// but warn that location setup may be required.
-			Alert.alert(
-				'Signed in, but could not load site config',
-				e?.message ?? 'Continuing to home.'
-			);
-			router.replace('/(tabs)/home');
-		}
-	}
+		!passwordError &&
+		!confirmError;
 
 	async function onSubmit() {
-		setTouched({ email: true, password: true });
-		if (!EMAIL_RE.test(email.trim()) || password.length < 8) return;
+		setTouched({ email: true, password: true, confirm: true });
+		if (!canSubmit) return;
 
 		try {
 			setSubmitting(true);
 
-			const res = await signInAws(email.trim(), password);
+			const res = await signUpAws(email.trim(), password);
 
 			if (!res.ok) {
-				Alert.alert('Sign in failed', res.message ?? 'Unable to sign in.');
+				Alert.alert('Sign up failed', res.message ?? 'Unable to sign up.');
 				return;
 			}
 
-			await routeAfterSignIn();
+			router.replace('/(auth)/login');
 		} catch (e: any) {
 			Alert.alert('Error', e?.message ?? 'Something went wrong.');
 		} finally {
@@ -107,10 +98,11 @@ export default function LoginScreen() {
 						end={{ x: 1, y: 1 }}
 						style={StyleSheet.absoluteFill}
 					/>
+
 					<Text style={styles.brand}>HydroWatch</Text>
 
 					<View style={styles.card}>
-						<Text style={styles.title}>Welcome back</Text>
+						<Text style={styles.title}>Create your account</Text>
 
 						<View style={styles.field}>
 							<Text style={styles.label}>Email</Text>
@@ -147,8 +139,7 @@ export default function LoginScreen() {
 									placeholderTextColor={colors.gray100}
 									style={styles.pwInput}
 									editable={!submitting}
-									returnKeyType='done'
-									onSubmitEditing={onSubmit}
+									returnKeyType='next'
 								/>
 								<Pressable
 									onPress={() => setShowPw((v) => !v)}
@@ -168,6 +159,41 @@ export default function LoginScreen() {
 							)}
 						</View>
 
+						<View style={styles.field}>
+							<Text style={styles.label}>Confirm password</Text>
+
+							<View
+								style={[styles.pwRow, confirmError ? styles.inputError : null]}>
+								<TextInput
+									value={confirm}
+									onChangeText={setConfirm}
+									onBlur={() => setTouched((t) => ({ ...t, confirm: true }))}
+									secureTextEntry={!showConfirm}
+									placeholder='••••••••'
+									placeholderTextColor={colors.gray100}
+									style={styles.pwInput}
+									editable={!submitting}
+									returnKeyType='done'
+									onSubmitEditing={onSubmit}
+								/>
+								<Pressable
+									onPress={() => setShowConfirm((v) => !v)}
+									disabled={submitting}
+									style={({ pressed }) => [
+										styles.pwToggle,
+										pressed && !submitting ? { opacity: 0.7 } : null,
+									]}>
+									<Text style={styles.pwToggleText}>
+										{showConfirm ? 'Hide' : 'Show'}
+									</Text>
+								</Pressable>
+							</View>
+
+							{!!confirmError && (
+								<Text style={styles.error}>{confirmError}</Text>
+							)}
+						</View>
+
 						<Pressable
 							onPress={onSubmit}
 							disabled={!canSubmit}
@@ -179,34 +205,19 @@ export default function LoginScreen() {
 							{submitting ? (
 								<ActivityIndicator />
 							) : (
-								<Text style={styles.primaryText}>Sign in</Text>
+								<Text style={styles.primaryText}>Create account</Text>
 							)}
 						</Pressable>
 
 						<View style={styles.actionsRow}>
 							<Pressable
-								onPress={() =>
-									Alert.alert(
-										'Not wired yet',
-										'Add a reset flow when you set up password reset.'
-									)
-								}
+								onPress={() => router.back()}
 								disabled={submitting}
 								style={({ pressed }) => [
 									styles.linkBtn,
 									pressed && !submitting ? { opacity: 0.75 } : null,
 								]}>
-								<Text style={styles.linkText}>Forgot password?</Text>
-							</Pressable>
-
-							<Pressable
-								onPress={() => router.push('/(auth)/signup')}
-								disabled={submitting}
-								style={({ pressed }) => [
-									styles.linkBtn,
-									pressed && !submitting ? { opacity: 0.75 } : null,
-								]}>
-								<Text style={styles.linkText}>Create account</Text>
+								<Text style={styles.linkText}>Back to sign in</Text>
 							</Pressable>
 						</View>
 					</View>
@@ -220,12 +231,6 @@ const styles = StyleSheet.create({
 	page: {
 		flex: 1,
 		justifyContent: 'flex-start',
-		paddingHorizontal: 16,
-	},
-
-	inner: {
-		flex: 1,
-		justifyContent: 'center',
 		paddingHorizontal: 16,
 	},
 
@@ -338,7 +343,7 @@ const styles = StyleSheet.create({
 
 	actionsRow: {
 		flexDirection: 'row',
-		justifyContent: 'space-between',
+		justifyContent: 'flex-start',
 		marginTop: 12,
 	},
 

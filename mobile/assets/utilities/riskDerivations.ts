@@ -1,90 +1,72 @@
-import type { DriverItem, Influence, RiskLevel } from '@/config/types';
-import type { FakeDbRow } from './fakeDbParse';
-import { asNumber } from './fakeDbTypes';
+import type {
+	DriverItem,
+	Influence,
+	RiskLevel,
+	Severity,
+} from '@/config/types';
 
-export function getRiskScore(row: FakeDbRow): number {
-	const score = asNumber(row.risk_score);
-	return Number(score.toFixed(0));
+export function classifySeverityFromSat(sat: number): Severity {
+	if (sat < 0.05) return 'Normal';
+	if (sat < 0.6) return 'Elevated';
+	return 'High';
 }
 
 export function getRiskLevel(score: number): RiskLevel {
-	if (score < 30.0) {
+	if (score < 25) {
 		return 'Low';
-	} else if (score < 60.0) {
+	} else if (score < 50) {
 		return 'Moderate';
-	} else if (score < 80.0) {
+	} else if (score < 75) {
 		return 'High';
 	} else {
 		return 'Severe';
 	}
 }
 
-/**
- * Soil influence from normalized saturation average (0..1).
- */
-export function getSoilMoistureInfluence(row: FakeDbRow): Influence {
-	const satAvg = asNumber(row.sat_avg);
+export function getBaseRiskInfluence(base_risk: number | undefined): Influence {
+	const influence = Number(base_risk);
 
-	if (!Number.isFinite(satAvg)) return 'Low';
-
-	// Stub thresholds (tweak later)
-	if (satAvg >= 0.6) return 'High';
-	if (satAvg >= 0.3) return 'Moderate';
-	return 'Low';
-}
-
-/**
- * Forecast influence from total 24h precipitation vs IDF 24h depth.
- * Uses data already in the script output.
- */
-export function getForecastedRainfallInfluence(row: FakeDbRow): Influence {
-	const total = asNumber(row.forecast_24h_total_mm);
-	const idf = asNumber(row.IDF_24h_2yr_mm);
-
-	if (!Number.isFinite(total) || !Number.isFinite(idf) || idf <= 0)
+	if (influence < 33) {
 		return 'Low';
-
-	const ratio = total / idf;
-
-	// Mirrors the shape of your storm-severity component, but as a coarse label.
-	if (ratio >= 0.8) return 'High';
-	if (ratio >= 0.3) return 'Moderate';
-	return 'Low';
+	} else if (influence < 66) {
+		return 'Moderate';
+	} else {
+		return 'High';
+	}
 }
 
-/**
- * Site sensitivity influence from the script output factor.
- * (Right now your factor is 0..1-ish; this is a simple bucket.)
- */
-export function getSiteSensitivityInfluence(row: FakeDbRow): Influence {
-	const f = asNumber(row.site_sensitivity_factor);
+export function getRiskFactorInfluence(factor: number | undefined): Influence {
+	const influence = Number(factor);
 
-	if (!Number.isFinite(f)) return 'Low';
-
-	if (f >= 0.5) return 'High';
-	if (f > 0.0) return 'Moderate';
-	return 'Low';
+	if (influence < 0.33) {
+		return 'Low';
+	} else if (influence < 0.66) {
+		return 'Moderate';
+	} else {
+		return 'High';
+	}
 }
 
-/**
- * Convenience: build the driver list the Risk screen expects.
- */
-export function buildRiskDrivers(row: FakeDbRow): DriverItem[] {
+export function buildRiskDrivers(
+	base_soil_risk?: number,
+	site_sensitivity_factor?: number,
+	storm_factor?: number
+): DriverItem[] {
 	return [
 		{
-			key: 'soilMoisture',
+			key: 'soil',
 			title: 'Soil Moisture',
-			value: getSoilMoistureInfluence(row),
+			value: getBaseRiskInfluence(base_soil_risk),
 		},
 		{
-			key: 'siteSensitivity',
+			key: 'sensitivity',
 			title: 'Site Sensitivity',
-			value: getSiteSensitivityInfluence(row),
+			value: getRiskFactorInfluence(site_sensitivity_factor),
 		},
 		{
-			key: 'forecastedRainfall',
+			key: 'storm',
 			title: 'Forecasted Rainfall',
-			value: getForecastedRainfallInfluence(row),
+			value: getRiskFactorInfluence(storm_factor),
 		},
 	];
 }

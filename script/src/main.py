@@ -7,20 +7,20 @@ from src.aws_storage import AwsStorage, ddb_row_to_raw_payload
 from datetime import datetime, timezone
 
 import pandas as pd
+import argparse
 
 
-def run_pipeline():
+def run_pipeline(site_id: str, now_iso: str):
     REGION = "us-east-1"
     storage = AwsStorage(region=REGION)
-    # TODO: replace with real site_id
-    site_id = "site_001"
 
     config = storage.get_site_config(site_id)
     latest_row, prev_row = storage.get_latest_two_raw_payloads(site_id)
     raw_payload = ddb_row_to_raw_payload(latest_row)
     previous_raw_payload = ddb_row_to_raw_payload(prev_row)
-    #TODO: replace with real 1h-ago soil saturation
-    soil_saturation_1h_ago = 0.3
+
+    soil_saturation_1h_ago = storage.get_sat_1h_ago(site_id, now_iso)
+
     lat = float(config["lat"])
     lon = float(config["lon"])
     fc_vwc = float(config["fc_vwc"])
@@ -35,15 +35,14 @@ def run_pipeline():
         timestamp=timestamp,
     )
 
+    max_raw_saturation = max(cleaned_readings.values())
+
     forecast_24h_hourly_mm, forecast_24h_total_mm = get_24h_precip(lat, lon)
 
     saturation = normalize_moisture(cleaned_readings, fc_vwc, sat_vwc)
-    saturation_avg = (saturation["front"] +
-                      saturation["back"] +
-                      saturation["left"] +
-                      saturation["right"]) / 4.0
+    max_normalized_saturation = max(saturation.values())
 
-    risk_score_internal, risk_score_displayed, base_soil_risk, storm_factor, site_sensitivity_factor = compute_risk_score(saturation_avg,
+    risk_score_internal, risk_score_displayed, base_soil_risk, storm_factor, site_sensitivity_factor = compute_risk_score(max_normalized_saturation,
                                     soil_saturation_1h_ago,
                                     forecast_24h_total_mm,
                                     idf_24h_mm)
@@ -53,19 +52,17 @@ def run_pipeline():
 
     qc_all_sensors_normal = bool(qc_report.get("all_sensors_normal", False))
     qc_used_fallback = bool(qc_report.get("used_fallback", False))
-
-    last_updated_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
     latest_item = {
         "site_id": site_id,
-        "last_updated_iso": last_updated_iso,
+        "last_updated_iso": now_iso,
 
-        # per-side normalized saturation (0..1)
-        "sat_front": float(saturation["front"]),
-        "sat_back": float(saturation["back"]),
-        "sat_left": float(saturation["left"]),
-        "sat_right": float(saturation["right"]),
-        "sat_avg": float(saturation_avg),
+        # per-side raw saturation
+        "sat_front": float(cleaned_readings["front"]),
+        "sat_back": float(cleaned_readings["back"]),
+        "sat_left": float(cleaned_readings["left"]),
+        "sat_right": float(cleaned_readings["right"]),
+        "max_sat": float(max_raw_saturation),
 
         # forecast
         "forecast_24h_hourly_mm": forecast_hourly_list,
@@ -88,14 +85,20 @@ def run_pipeline():
 
     storage.append_moisture_point(
         site_id=site_id,
-        timestamp_iso=last_updated_iso,
-        sat_avg=float(saturation_avg),
+        timestamp_iso=now_iso,
+        max_sat=float(max_raw_saturation),
     )
 
-    print(f"Wrote results to AWS")
 
 def main():
-    run_pipeline()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--site-id", required=True)
+    parser.add_argument("--now-iso", default=None)
+    args = parser.parse_args()
+
+    now_iso = args.now_iso or datetime.now(timezone.utc).isoformat()
+
+    run_pipeline(site_id=args.site_id, now_iso=now_iso)
 
 if __name__ == "__main__":
     main()

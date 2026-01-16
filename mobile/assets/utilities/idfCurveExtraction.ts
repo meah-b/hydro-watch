@@ -52,9 +52,7 @@ function collectNodesByKey(obj: any, keyName: string, out: any[] = []): any[] {
 
 export default async function getIdfDepth(
 	lat: number,
-	lon: number,
-	durationHours: number = 24,
-	returnPeriod: number = 2
+	lon: number
 ): Promise<number> {
 	const gridLat = toGridCoordinate(lat);
 	const gridLon = toGridCoordinate(lon);
@@ -124,22 +122,17 @@ export default async function getIdfDepth(
 	}
 
 	const period = periods.find(
-		(p: any) => String(getAttr(p, 'id')) === String(returnPeriod)
+		(p: any) => String(getAttr(p, 'id')) === String(2)
 	);
 	if (!period) {
-		throw new Error(
-			`No ${returnPeriod}-yr period for coord ${getAttr(coord, 'id')}`
-		);
+		throw new Error(`No 2-yr period for coord ${getAttr(coord, 'id')}`);
 	}
 
 	const aStr = getAttr(period, 'a');
 	const bStr = getAttr(period, 'b');
 	if (!aStr || !bStr) {
 		throw new Error(
-			`Missing a/b attributes for coord ${getAttr(
-				coord,
-				'id'
-			)} period ${returnPeriod}`
+			`Missing a/b attributes for coord ${getAttr(coord, 'id')} period 2`
 		);
 	}
 
@@ -150,11 +143,11 @@ export default async function getIdfDepth(
 			`Invalid a/b for coord ${getAttr(
 				coord,
 				'id'
-			)} period ${returnPeriod}: a=${aStr}, b=${bStr}`
+			)} period ${2}: a=${aStr}, b=${bStr}`
 		);
 	}
 
-	const t = durationHours;
+	const t = 24;
 	const depthMm = a * Math.pow(t, b + 1);
 
 	return Number(depthMm.toFixed(2));
