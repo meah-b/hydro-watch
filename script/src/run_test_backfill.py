@@ -31,6 +31,35 @@ def rand01(seed: int, n: int) -> float:
     h = hashlib.sha256(f"{seed}|{n}".encode("utf-8")).hexdigest()
     return int(h[:8], 16) / 0xFFFFFFFF
 
+def risk_profile(risk: str) -> dict:
+    """
+    Controls baseline moisture and variability.
+
+    Values are in the same scale as your raw sensor readings (0..1-ish).
+    These are tuned so that:
+      - low: mostly below fc_vwc (often normalizes to 0)
+      - mod: often around/above fc_vwc
+      - high: consistently above fc_vwc and closer to sat_vwc
+    """
+    if risk == "high":
+        return {"level": 0.44, "amp": 0.08, "trend": 0.05}
+    if risk == "mod":
+        return {"level": 0.34, "amp": 0.08, "trend": 0.04}
+    return {"level": 0.26, "amp": 0.07, "trend": 0.03}  # low
+
+
+def base_moisture(idx: int, n_points: int, prof: dict) -> float:
+    """
+    Smooth time-varying base moisture with a slight upward trend.
+    """
+    frac = idx / max(1, (n_points - 1))
+    level = prof["level"]
+    amp = prof["amp"]
+    trend = prof["trend"]
+    v = level + amp * math.sin(frac * math.pi) + trend * frac
+    return clamp01(v)
+
+
 
 def make_side_samples(site_id: str, ts_iso: str, side: str, idx: int, base: float) -> List[Optional[float]]:
     """
@@ -51,7 +80,7 @@ def make_side_samples(site_id: str, ts_iso: str, side: str, idx: int, base: floa
     return out
 
 
-def build_raw_item(site_id: str, ts_iso: str, idx: int) -> Dict:
+def build_raw_item(site_id: str, ts_iso: str, idx: int, n_points: int, risk: str) -> Dict:
     """
     Builds one RawSensorReadings item:
       {
@@ -60,8 +89,9 @@ def build_raw_item(site_id: str, ts_iso: str, idx: int) -> Dict:
         samples: { front: [..], back: [..], left: [..], right: [..] }
       }
     """
-    frac = idx / 24.0  # approx in 6h window
-    base = 0.25 + 0.25 * math.sin(frac * math.pi) + 0.10 * frac
+    prof = risk_profile(risk)
+    base = base_moisture(idx, n_points, prof)
+
     base = clamp01(base)
 
     front_base = clamp01(base + 0.05 * math.sin(idx / 3.0))
@@ -89,6 +119,13 @@ def main():
     parser.add_argument("--interval-min", type=int, default=15)
     parser.add_argument("--now-iso", default=None, help="Override 'now' (UTC ISO like 2026-01-15T19:30:00Z)")
     parser.add_argument("--dry-run", action="store_true", help="Generate timestamps and raw items, but do not write or run pipeline")
+    parser.add_argument(
+        "--risk",
+        choices=["low", "mod", "high"],
+        default="low",
+        help="Controls how wet the generated raw readings are (affects downstream risk).",
+    )
+
     args = parser.parse_args()
 
     site_id = args.site_id
@@ -114,7 +151,7 @@ def main():
     if args.dry_run:
         for idx, dt in enumerate(times):
             ts_iso = iso(dt)
-            item = build_raw_item(site_id, ts_iso, idx)
+            item = build_raw_item(site_id, ts_iso, idx, len(times), args.risk)
             print(ts_iso, "front0=", item["samples"]["front"][0])
         return
 
@@ -123,7 +160,7 @@ def main():
     # 1) Write all raw readings first (so your "get_latest_two_raw_payloads_at" has something to query)
     for idx, dt in enumerate(times):
         ts_iso = iso(dt)
-        item = build_raw_item(site_id, ts_iso, idx)
+        item = build_raw_item(site_id, ts_iso, idx, len(times), args.risk)
 
         # You need a method that writes raw payloads.
         # If you don't have it yet, add one in AwsStorage (example below).

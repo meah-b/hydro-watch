@@ -14,6 +14,7 @@ import {
 	View,
 } from 'react-native';
 
+import getSiteConfig from '@/assets/utilities/getSiteConfig';
 import getMoisture6hRows from '@/assets/utilities/getSoilMoistureHistory';
 import ForecastVsIdfBarChart from '../../assets/components/graphics/ForecastVsIdfBarChart';
 import FoundationMoistureMap from '../../assets/components/graphics/FoundationMoistureMap';
@@ -24,6 +25,7 @@ import {
 	MoistureRow,
 	SectionKey,
 	SensorNodesMap,
+	SiteConfig,
 	SiteState,
 } from '../../config/types';
 
@@ -47,6 +49,7 @@ function symmetryNoteFromSides(
 
 export default function Insights() {
 	const [state, setState] = useState<SiteState | null>(null);
+	const [config, setConfig] = useState<SiteConfig | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [moistureRows, setMoistureRows] = useState<MoistureRow[]>([]);
@@ -54,15 +57,15 @@ export default function Insights() {
 	useEffect(() => {
 		let mounted = true;
 
-		Promise.all([getLatestSiteState(), getMoisture6hRows()])
-			.then(([siteState, rows]) => {
+		Promise.all([getLatestSiteState(), getMoisture6hRows(), getSiteConfig()])
+			.then(([siteState, rows, cfg]) => {
 				if (!mounted) return;
 				setState(siteState);
-				setMoistureRows(rows);
+				setMoistureRows(rows ?? []);
+				setConfig(cfg ?? null);
 			})
 			.catch((e) => {
 				if (!mounted) return;
-
 				setError(e?.message ?? 'Failed to load insights data');
 			})
 			.finally(() => {
@@ -157,9 +160,10 @@ export default function Insights() {
 	}, [symmetry, satFront, satBack, satLeft, satRight]);
 
 	const forecastedDepth24h = state?.forecast_24h_total_mm ?? 0;
-	const idfDepth24h = state?.idf_24h_2yr_mm ?? 0;
 	const lastUpdatedIso = state?.last_updated_iso;
 	const lastUpdatedText = getLastUpdatedText(lastUpdatedIso || '');
+
+	const idfDepth24h = config?.idf_24h_2yr_mm ?? 0;
 
 	if (loading) {
 		return (
