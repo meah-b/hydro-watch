@@ -4,7 +4,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from src.aws_storage import AwsStorage
+from src.utilities.aws_storage import AwsStorage
 from src.main import run_pipeline 
 
 REGION = "us-east-1"

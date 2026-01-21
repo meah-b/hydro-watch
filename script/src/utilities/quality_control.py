@@ -85,10 +85,9 @@ def QC_samples_and_summarize(
     if not current_reading:
         raise ValueError("QC_samples_and_summarize: no samples provided.")
 
-    ## Disable for demo purposes
-    # ts_ok, ts_fields = _validate_timestamp(timestamp)
-    # if not ts_ok:
-    #     raise ValueError(f"QC_samples_and_summarize: bad timestamp ({ts_fields['timestamp_reason']})")
+    ts_ok, ts_fields = _validate_timestamp(timestamp)
+    if not ts_ok:
+        raise ValueError(f"QC_samples_and_summarize: bad timestamp ({ts_fields['timestamp_reason']})")
 
     sensors = ["front", "back", "left", "right"]
 
@@ -106,7 +105,6 @@ def QC_samples_and_summarize(
 
         raw_list = current_reading.get(sensor) or []
 
-        # Count kept/removed for reporting
         kept = 0
         removed = 0
         valid_vals: List[float] = []
@@ -124,7 +122,6 @@ def QC_samples_and_summarize(
             cleaned[sensor] = float(median(valid_vals))
             continue
 
-        # No valid samples -> try fallback using previous interval list for this sensor
         prev_list = None
         if previous_valid_reading is not None:
             prev_list = previous_valid_reading.get(sensor)
@@ -140,6 +137,9 @@ def QC_samples_and_summarize(
             f"QC_samples_and_summarize: sensor '{sensor}' has no valid samples "
             "and no usable previous_valid_reading fallback."
         )
+    
+    if missing_sensors:
+        raise ValueError(f"QC_samples_and_summarize: missing sensors: {missing_sensors}")
 
     all_sensors_present = (len(missing_sensors) == 0)
     all_sensors_normal = all_sensors_present and (len(fallback_sensors) == 0) and (len(failed_sensors) == 0)

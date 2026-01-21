@@ -1,8 +1,8 @@
 from src.utilities.quality_control import QC_samples_and_summarize
 from src.utilities.normalization import normalize_moisture
-from src.risk_model import compute_risk_score
+from src.utilities.risk_model import compute_risk_score
 from src.utilities.forecast_extraction import get_24h_precip
-from src.aws_storage import AwsStorage, ddb_row_to_raw_payload
+from src.utilities.aws_storage import AwsStorage, ddb_row_to_raw_payload
 
 from datetime import datetime, timezone
 
