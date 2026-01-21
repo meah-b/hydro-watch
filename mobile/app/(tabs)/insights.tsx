@@ -5,9 +5,16 @@ import classifySymmetryFromSides from '@/assets/utilities/getSiteSymmetryInfo';
 import { classifySeverityFromSat } from '@/assets/utilities/riskDerivations';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import {
 	LayoutChangeEvent,
+	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	Text,
@@ -53,29 +60,36 @@ export default function Insights() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [moistureRows, setMoistureRows] = useState<MoistureRow[]>([]);
+	const [refreshing, setRefreshing] = useState(false);
+
+	const load = useCallback(async () => {
+		try {
+			setError(null);
+			const [siteState, rows, cfg] = await Promise.all([
+				getLatestSiteState(),
+				getMoisture6hRows(),
+				getSiteConfig(),
+			]);
+
+			setState(siteState);
+			setMoistureRows(rows ?? []);
+			setConfig(cfg ?? null);
+		} catch (e: any) {
+			setError(e?.message ?? 'Failed to load insights data');
+		} finally {
+			setLoading(false);
+		}
+	}, []);
 
 	useEffect(() => {
-		let mounted = true;
+		load();
+	}, [load]);
 
-		Promise.all([getLatestSiteState(), getMoisture6hRows(), getSiteConfig()])
-			.then(([siteState, rows, cfg]) => {
-				if (!mounted) return;
-				setState(siteState);
-				setMoistureRows(rows ?? []);
-				setConfig(cfg ?? null);
-			})
-			.catch((e) => {
-				if (!mounted) return;
-				setError(e?.message ?? 'Failed to load insights data');
-			})
-			.finally(() => {
-				if (mounted) setLoading(false);
-			});
-
-		return () => {
-			mounted = false;
-		};
-	}, []);
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await load();
+		setRefreshing(false);
+	}, [load]);
 
 	const moisture6h = useMemo(() => {
 		const values = (moistureRows ?? [])
@@ -192,7 +206,13 @@ export default function Insights() {
 			<ScrollView
 				ref={scrollRef}
 				contentContainerStyle={styles.scrollContent}
-				showsVerticalScrollIndicator={false}>
+				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						onRefresh={onRefresh}
+					/>
+				}>
 				<View style={styles.card}>
 					<View
 						onLayout={makeOnLayout('foundation')}
@@ -305,7 +325,6 @@ const styles = StyleSheet.create({
 
 	lastUpdated: {
 		fontSize: 13,
-		marginTop: 2,
 		opacity: 0.75,
 		paddingHorizontal: 16,
 	},

@@ -1,13 +1,18 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+	RefreshControl,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from 'react-native';
 
 import ForecastCard from '../../assets/components/cards/ForecastCard';
 import SmallMetricCard, {
 	LargeMetricCard,
 	MediumMetricCard,
-	WarningCard,
 } from '../../assets/components/cards/MetricCard';
 
 import LoadingScreen from '@/assets/components/screens/loading';
@@ -22,29 +27,30 @@ import colors from '../../config/theme';
 export default function Home() {
 	const [state, setState] = useState<SiteState | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	useEffect(() => {
-		let mounted = true;
-
-		getLatestSiteState()
-			.then((data) => {
-				if (mounted) setState(data);
-			})
-			.catch((e) => {
-				if (mounted) setError(e.message ?? 'Failed to load site state');
-			})
-			.finally(() => {
-				if (mounted) setLoading(false);
-			});
-
-		return () => {
-			mounted = false;
-		};
+	const load = useCallback(async () => {
+		try {
+			setError(null);
+			const data = await getLatestSiteState();
+			setState(data);
+		} catch (e: any) {
+			setError(e?.message ?? 'Failed to load site state');
+		} finally {
+			setLoading(false);
+		}
 	}, []);
 
-	// TODO: later source from Environment Canada API
-	const hasActiveWarning = true;
+	useEffect(() => {
+		load();
+	}, [load]);
+
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await load();
+		setRefreshing(false);
+	}, [load]);
 
 	const riskScore = Number(state?.risk_score ?? NaN);
 	const riskLevel = getRiskLevel(riskScore);
@@ -92,7 +98,13 @@ export default function Home() {
 			style={styles.root}>
 			<ScrollView
 				contentContainerStyle={styles.scrollContent}
-				showsVerticalScrollIndicator={false}>
+				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						onRefresh={onRefresh}
+					/>
+				}>
 				<LargeMetricCard
 					title='Flood risk'
 					value={riskLevel.toUpperCase()}
@@ -137,21 +149,10 @@ export default function Home() {
 					}
 				/>
 
-				{hasActiveWarning && (
-					<WarningCard
-						title='Flood warning issued'
-						value='Environment Canada'
-						desc='Valid until Jan 1, 6:00 AM'
-						onPress={() => {
-							Linking.openURL('https://weather.gc.ca/warnings');
-						}}
-					/>
-				)}
-
 				<MediumMetricCard
 					title='Sensor Status'
 					value={sensorStatusValue}
-					desc='Estimated battery life: 6 months' // TODO: dynamic
+					desc='Sampling every 15 minutes'
 					onPress={() => {}}
 				/>
 				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
@@ -193,7 +194,6 @@ const styles = StyleSheet.create({
 
 	lastUpdated: {
 		fontSize: 13,
-		marginTop: 2,
 		opacity: 0.75,
 		paddingHorizontal: 16,
 	},

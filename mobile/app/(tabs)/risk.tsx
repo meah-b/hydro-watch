@@ -1,15 +1,20 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+	RefreshControl,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from 'react-native';
 
 import LoadingScreen from '@/assets/components/screens/loading';
 import {
 	buildInfluenceDesc,
 	buildRiskDesc,
-} from '@/assets/utilities/buildRiskDescription';
+} from '@/assets/utilities/buildDescriptions';
 import getLastUpdatedText from '@/assets/utilities/getLastUpdatedText';
 import { getLatestSiteState } from '@/assets/utilities/getLatestSiteState';
-import { MediumMetricCard } from '../../assets/components/cards/MetricCard';
 import RiskGauge from '../../assets/components/graphics/RiskGauge';
 import {
 	buildRiskDrivers,
@@ -48,26 +53,30 @@ function InfluenceRow(props: {
 export default function Risk() {
 	const [state, setState] = useState<SiteState | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	useEffect(() => {
-		let mounted = true;
-
-		getLatestSiteState()
-			.then((data) => {
-				if (mounted) setState(data);
-			})
-			.catch((e) => {
-				if (mounted) setError(e.message ?? 'Failed to load site state');
-			})
-			.finally(() => {
-				if (mounted) setLoading(false);
-			});
-
-		return () => {
-			mounted = false;
-		};
+	const load = useCallback(async () => {
+		try {
+			setError(null);
+			const data = await getLatestSiteState();
+			setState(data);
+		} catch (e: any) {
+			setError(e?.message ?? 'Failed to load site state');
+		} finally {
+			setLoading(false);
+		}
 	}, []);
+
+	useEffect(() => {
+		load();
+	}, [load]);
+
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await load();
+		setRefreshing(false);
+	}, [load]);
 
 	const riskScore = Number((state?.risk_score ?? NaN).toFixed(0));
 	const riskLevel = getRiskLevel(riskScore);
@@ -112,7 +121,13 @@ export default function Risk() {
 			style={styles.root}>
 			<ScrollView
 				contentContainerStyle={styles.scrollContent}
-				showsVerticalScrollIndicator={false}>
+				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						onRefresh={onRefresh}
+					/>
+				}>
 				<View style={styles.cardHero}>
 					<View style={{ alignItems: 'center', gap: 6 }}>
 						<Text style={styles.heroValue}>
@@ -140,13 +155,6 @@ export default function Risk() {
 						to the current risk estimate.
 					</Text>
 				</View>
-
-				{/* TODO */}
-				<MediumMetricCard
-					title='Recommended action'
-					value='No immediate action required'
-					desc='Monitor conditions this evening'
-				/>
 
 				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
 			</ScrollView>
@@ -214,7 +222,6 @@ const styles = StyleSheet.create({
 
 	lastUpdated: {
 		fontSize: 13,
-		marginTop: 2,
 		opacity: 0.75,
 		paddingHorizontal: 16,
 	},
