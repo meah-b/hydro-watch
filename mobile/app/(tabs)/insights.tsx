@@ -4,7 +4,7 @@ import { getLatestSiteState } from '@/assets/utilities/getLatestSiteState';
 import classifySymmetryFromSides from '@/assets/utilities/getSiteSymmetryInfo';
 import { classifySeverityFromSat } from '@/assets/utilities/riskDerivations';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, {
 	useCallback,
 	useEffect,
@@ -38,7 +38,7 @@ import {
 
 function symmetryNoteFromSides(
 	sym: Influence,
-	satsBySide: Record<string, number>
+	satsBySide: Record<string, number>,
 ): string {
 	const entries = Object.entries(satsBySide).sort((a, b) => b[1] - a[1]);
 	const [wet1, wet2] = entries.slice(0, 2);
@@ -62,7 +62,14 @@ export default function Insights() {
 	const [moistureRows, setMoistureRows] = useState<MoistureRow[]>([]);
 	const [refreshing, setRefreshing] = useState(false);
 
+	console.log('Insights render', {
+		loading,
+		hasState: !!state,
+		hasConfig: !!config,
+	});
+
 	const load = useCallback(async () => {
+		setLoading(true);
 		try {
 			setError(null);
 			const [siteState, rows, cfg] = await Promise.all([
@@ -81,9 +88,11 @@ export default function Insights() {
 		}
 	}, []);
 
-	useEffect(() => {
-		load();
-	}, [load]);
+	useFocusEffect(
+		useCallback(() => {
+			load();
+		}, [load]),
+	);
 
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);
@@ -211,6 +220,7 @@ export default function Insights() {
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
+						colors={[colors.red100, colors.blue200]}
 					/>
 				}>
 				<View style={styles.card}>

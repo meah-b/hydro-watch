@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
 	RefreshControl,
 	ScrollView,
@@ -8,6 +8,7 @@ import {
 	View,
 } from 'react-native';
 
+import { useFocusEffect } from '@/.expo/types/router';
 import LoadingScreen from '@/assets/components/screens/loading';
 import {
 	buildInfluenceDesc,
@@ -68,9 +69,11 @@ export default function Risk() {
 		}
 	}, []);
 
-	useEffect(() => {
-		load();
-	}, [load]);
+	useFocusEffect(
+		useCallback(() => {
+			load();
+		}, [load]),
+	);
 
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);
@@ -87,7 +90,7 @@ export default function Risk() {
 		const drivers = buildRiskDrivers(
 			state?.base_soil_risk,
 			state?.site_sensitivity_factor,
-			state?.storm_factor
+			state?.storm_factor,
 		);
 		return drivers.map((d) => ({
 			...d,

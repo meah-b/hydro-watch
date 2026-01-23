@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
 	RefreshControl,
 	ScrollView,
@@ -42,9 +42,11 @@ export default function Home() {
 		}
 	}, []);
 
-	useEffect(() => {
-		load();
-	}, [load]);
+	useFocusEffect(
+		useCallback(() => {
+			load();
+		}, [load]),
+	);
 
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);

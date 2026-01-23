@@ -35,7 +35,6 @@ def run_pipeline(site_id: str, now_iso: str):
         timestamp=timestamp,
     )
 
-    max_raw_saturation = max(cleaned_readings.values())
 
     forecast_24h_hourly_mm, forecast_24h_total_mm = get_24h_precip(lat, lon)
 
@@ -58,11 +57,11 @@ def run_pipeline(site_id: str, now_iso: str):
         "last_updated_iso": now_iso,
 
         # per-side raw saturation
-        "sat_front": float(cleaned_readings["front"]),
-        "sat_back": float(cleaned_readings["back"]),
-        "sat_left": float(cleaned_readings["left"]),
-        "sat_right": float(cleaned_readings["right"]),
-        "max_sat": float(max_raw_saturation),
+        "sat_front": float(saturation["front"]),
+        "sat_back": float(saturation["back"]),
+        "sat_left": float(saturation["left"]),
+        "sat_right": float(saturation["right"]),
+        "max_sat": float(max_normalized_saturation),
 
         # forecast
         "forecast_24h_hourly_mm": forecast_hourly_list,
@@ -86,7 +85,7 @@ def run_pipeline(site_id: str, now_iso: str):
     storage.append_moisture_point(
         site_id=site_id,
         timestamp_iso=now_iso,
-        max_sat=float(max_raw_saturation),
+        max_sat=float(max_normalized_saturation),
     )
 
 

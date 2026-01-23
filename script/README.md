@@ -1,4 +1,5 @@
 # Flood-Risk Pipeline
+
 This project implements a **home-scale flood-risk estimation pipeline** that combines soil-moisture sensing, short-term weather forecasts, local rainfall statistics, and soil response behaviour to produce a homeowner-facing flood-risk score.
 
 The system is designed to operate continuously at **15-minute resolution**, ingesting raw sensor readings, performing quality control and normalization, and storing processed state in AWS for consumption by the mobile application.
@@ -8,14 +9,16 @@ The system is designed to operate continuously at **15-minute resolution**, inge
 ## 🌧️ Project Overview
 
 Most flood models operate at the watershed or municipal scale. This project focuses on **foundation-level risk**, using local sensors and climate context to answer a simpler question:
+
 > Given how wet the soil is right now and what rain is coming next, how likely is basement seepage or foundation water ingress?
-The pipeline integrates five core elements.
+> The pipeline integrates five core elements.
 
 ---
 
 ## 1. Soil Moisture Sensors (x4)
 
 Four sensors placed around the foundation:
+
 - front
 - back
 - left
@@ -42,6 +45,7 @@ QC outputs both the cleaned values and a structured `qc_report` that describes w
 Raw VWC values are converted into a **normalized saturation index** using site-specific soil parameters:
 `S = (VWC − FC) / (SAT − FC)`
 Where:
+
 - FC = field capacity
 - SAT = saturation threshold
 
@@ -91,6 +95,7 @@ Maps normalized soil saturation to a base risk score.
 Computed as:
 `forecast_24h_mm / IDF_24h_2yr_mm`
 Mapped piecewise so that:
+
 - Small storms add negligible risk
 - Typical design storms add moderate amplification
 - Severe storms increase amplification but are capped
@@ -102,6 +107,7 @@ Measures how fast soil saturation has increased in the last hour:
 This captures how reactive the site is during the current event.
 
 ### Final Combination
+
 `RiskInternal = BaseSoilRisk × (1 + SiteSensitivity × StormSeverity)`
 
 `RiskDisplayed = clamp(RiskInternal, 0–100)`
@@ -114,12 +120,12 @@ The internal score may exceed 100 under extreme conditions, but the displayed sc
 
 Implemented in `main.py` via `run_pipeline()`:
 
-1. Load site configuration from DynamoDB  
-2. Fetch the two most recent raw sensor payloads  
-3. Apply QC and median smoothing  
-4. Normalize moisture values  
-5. Fetch 24-hour rainfall forecast  
-6. Compute risk components and final score  
+1. Load site configuration from DynamoDB
+2. Fetch the two most recent raw sensor payloads
+3. Apply QC and median smoothing
+4. Normalize moisture values
+5. Fetch 24-hour rainfall forecast
+6. Compute risk components and final score
 7. Write:
    - LatestSiteState (current risk snapshot)
    - MoistureHistory (time-series trend point)
@@ -132,12 +138,13 @@ All numeric values are converted to DynamoDB-safe formats.
 
 Implemented in `aws_storage.py` using DynamoDB tables:
 
-- RawSensorReadings  
-- LatestSiteState  
-- MoistureHistory  
-- SiteConfig  
+- RawSensorReadings
+- LatestSiteState
+- MoistureHistory
+- SiteConfig
 
 Includes:
+
 - Recursive float → Decimal conversion
 - DynamoDB number parsing
 - Time-based queries for historical state
@@ -150,6 +157,7 @@ Includes:
 The script `run_test_backfill.py` generates **synthetic raw sensor data** for realistic testing and demos.
 
 Features:
+
 - Configurable time window and interval
 - Deterministic generation via hashing
 - Risk profiles (low, mod, high, sev) controlling baseline wetness
@@ -179,6 +187,7 @@ This ensures the model is stable, explainable, and repeatable.
 ## 📱 Mobile App Integration
 
 The pipeline is designed to serve a mobile application that:
+
 - Displays current flood-risk level
 - Shows recent soil-moisture trends
 - Surfaces forecast rainfall context
@@ -196,15 +205,16 @@ cd hydro-watch/script
 pip install -r requirements.txt
 ```
 
---- 
+---
 
 ## ▶️ Running the Pipeline
+
 ```bash
 python -m src.main --site-id <SITE_ID>
 ```
+
 Optional local backfill:
+
 ```bash
-python run_test_backfill.py --site-id <SITE_ID> --risk <RISK_LEVEL>
+python -m src.run_test_backfill --site-id <SITE_ID> --risk <RISK_LEVEL>
 ```
-
-

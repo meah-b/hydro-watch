@@ -168,4 +168,27 @@ class AwsStorage:
     
     def put_raw_payload(self, item: dict) -> Mapping[str, Any]:
         return self.raw_table.put_item(Item=to_dynamo(dict(item)))
+    
+    def get_latest_state(self, site_id: str) -> dict:
+        resp = self.latest_table.get_item(Key={"site_id": site_id})
+        item = resp.get("Item")
+        if not item:
+            raise RuntimeError(f"No LatestSiteState for {site_id}")
+        return from_ddb_resource(item)
+    
+    def get_risk_score(self, site_id: str) -> float:
+        """
+        Convenience accessor used by backfill calibration.
+        Change the key below if your LatestSiteState uses a different field name.
+        """
+        state = self.get_latest_state(site_id)
+
+        if "risk_score" in state:
+            return float(state["risk_score"])
+
+        raise KeyError(
+            f"LatestSiteState for {site_id} missing risk score field. "
+            f"Keys present: {list(state.keys())}"
+        )
+
 
