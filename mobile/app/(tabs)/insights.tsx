@@ -220,7 +220,6 @@ export default function Insights() {
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
-						colors={[colors.red100, colors.blue200]}
 					/>
 				}>
 				<View style={styles.card}>
