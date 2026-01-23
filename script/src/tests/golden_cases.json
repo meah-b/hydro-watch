@@ -1,0 +1,50 @@
+[
+	{
+		"name": "dry_no_storm",
+		"S_now": 0.1,
+		"S_1h_ago": 0.1,
+		"forecast_24h_mm": 0.0,
+		"idf_24h_2yr_mm": 100.0,
+		"expected_displayed": 0.0
+	},
+	{
+		"name": "dry_severe_storm",
+		"S_now": 0.15,
+		"S_1h_ago": 0.15,
+		"forecast_24h_mm": 150.0,
+		"idf_24h_2yr_mm": 100.0,
+		"expected_displayed": 0.0
+	},
+	{
+		"name": "mid_soil_no_storm",
+		"S_now": 0.6,
+		"S_1h_ago": 0.6,
+		"forecast_24h_mm": 0.0,
+		"idf_24h_2yr_mm": 100.0,
+		"expected_displayed": 35.0
+	},
+	{
+		"name": "wet_soil_moderate_storm",
+		"S_now": 0.9,
+		"S_1h_ago": 0.85,
+		"forecast_24h_mm": 70.0,
+		"idf_24h_2yr_mm": 100.0,
+		"expected_displayed": 78.75
+	},
+	{
+		"name": "very_wet_severe_storm_clamped",
+		"S_now": 1.2,
+		"S_1h_ago": 1.0,
+		"forecast_24h_mm": 150.0,
+		"idf_24h_2yr_mm": 100.0,
+		"expected_displayed": 100.0
+	},
+	{
+		"name": "rapid_wetting_moderate_storm",
+		"S_now": 0.8,
+		"S_1h_ago": 0.65,
+		"forecast_24h_mm": 60.0,
+		"idf_24h_2yr_mm": 100.0,
+		"expected_displayed": 75.0
+	}
+]

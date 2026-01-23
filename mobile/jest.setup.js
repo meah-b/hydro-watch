@@ -63,3 +63,43 @@ jest.mock('@/assets/components/graphics/ForecastVsIdfBarChart', () => {
 
 	return ForecastVsIdfBarChartMock;
 });
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+	require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
+jest.mock('aws-amplify/auth', () => ({
+	fetchAuthSession: jest.fn(async () => ({
+		tokens: {
+			accessToken: { toString: () => 'test-access-token' },
+			idToken: { toString: () => 'test-id-token' },
+		},
+	})),
+}));
+
+const originalWarn = console.warn;
+
+console.warn = (...args) => {
+	const msg = String(args[0] ?? '');
+
+	if (msg.includes("shared value's .value inside reanimated inline style")) {
+		return;
+	}
+
+	originalWarn(...args);
+};
+
+jest.mock('expo-router', () => {
+	const actual =
+		jest.requireActual < typeof import('expo-router') > 'expo-router';
+
+	return {
+		...actual,
+		router: {
+			push: jest.fn(),
+			replace: jest.fn(),
+			back: jest.fn(),
+		},
+		useLocalSearchParams: jest.fn(() => ({})),
+	};
+});

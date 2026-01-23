@@ -9,12 +9,20 @@ export function makeSiteState(overrides: Partial<SiteState> = {}): SiteState {
 		sat_left: 0.4,
 		sat_right: 0.4,
 		forecast_24h_total_mm: 10,
-		forecast_24h_hourly_mm: [0, 1, 2],
+		forecast_24h_hourly_mm: Array(24).fill(0),
 		last_updated_iso: '2026-01-20T12:00:00Z',
 		base_soil_risk: 0.4,
 		site_sensitivity_factor: 0.4,
 		storm_factor: 0.4,
-		qc_report: { all_sensors_normal: true },
+
+		qc_report: {
+			all_sensors_normal: true,
+			used_fallback: false,
+			missing_sensors: [],
+			fallback_sensors: [],
+			failed_sensors: [],
+		},
+
 		...overrides,
 	} as SiteState;
 }
