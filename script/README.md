@@ -1,132 +1,210 @@
-# Flood-Risk Script
-A capstone project that combines **soil-moisture sensing**, **local climate data**, **soil-texture parameters**, and **storm-severity modelling** to estimate basement and foundation flood risk for individual homes. 
-The system reads four soil-moisture sensors **(front, back, left, right)** of a house and merges the data with **24-hour rainfall forecasts**, **MTO IDF curves**, and **short-term soil reactivity** to compute a homeowner-facing flood-risk score.
-The end product will connect to a **mobile app**, giving homeowners early warning when soil conditions and upcoming rainfall create a higher chance of seepage or basement water ingress.
+# Flood-Risk Pipeline
+This project implements a **home-scale flood-risk estimation pipeline** that combines soil-moisture sensing, short-term weather forecasts, local rainfall statistics, and soil response behaviour to produce a homeowner-facing flood-risk score.
+
+The system is designed to operate continuously at **15-minute resolution**, ingesting raw sensor readings, performing quality control and normalization, and storing processed state in AWS for consumption by the mobile application.
 
 ---
 
 ## 🌧️ Project Overview
 
-Traditional flood-risk models operate at the watershed scale. Our goal is to create a **localized, homeowner-specific monitoring system** by integrating:
+Most flood models operate at the watershed or municipal scale. This project focuses on **foundation-level risk**, using local sensors and climate context to answer a simpler question:
+> Given how wet the soil is right now and what rain is coming next, how likely is basement seepage or foundation water ingress?
+The pipeline integrates five core elements.
 
-### **1. Soil Moisture Sensors (x4)**
-Placed around the house foundation (front, back, left, right).  
-Values represent *fractional VWC* (volumetric water content).
+---
 
-Quality control & smoothing:
-- Remove invalid readings (NaN, out-of-range).
-- Take **median** across all valid samples in each batch.  
-  Implemented in `quality_control.py`.
+## 1. Soil Moisture Sensors (x4)
 
-### **2. Soil Texture Presets**
-Each home’s soil type (e.g., clay loam) determines **field capacity (FC)** and **saturation (SAT)** thresholds.  
-Moisture is converted into a normalized saturation index:
-S = (θ - FC) / (SAT - FC)
+Four sensors placed around the foundation:
+- front
+- back
+- left
+- right
+
+Each sensor reports multiple raw samples per interval (fractional VWC, ~0–1).
+
+### Quality Control
+
+Implemented in `quality_control.py`:
+
+- Invalid samples removed (NaN, None, out-of-range, non-numeric)
+- Median taken across valid samples per sensor
+- Automatic fallback to the **previous valid reading** if a sensor batch fully fails
+- Explicit failure if a sensor has no valid data and no fallback available
+- Timestamp validation (rejects stale or future data)
+
+QC outputs both the cleaned values and a structured `qc_report` that describes what occurred.
+
+---
+
+## 2. Soil Normalization
+
+Raw VWC values are converted into a **normalized saturation index** using site-specific soil parameters:
+`S = (VWC − FC) / (SAT − FC)`
+Where:
+- FC = field capacity
+- SAT = saturation threshold
 
 Implemented in `normalization.py`.
 
-### **3. 24-Hour Rainfall Forecast**
-Pulled from the **[Open-Meteo GEM seamless model](https://open-meteo.com/en/docs/gem-api)**, using the home's lat/lon.  
-We sum the next 24 hours of hourly precipitation.
+Values are intentionally **not clamped** so the risk model can reason about extremely dry or over-saturated conditions.
 
-Implemented in `forecast_extraction.py`.
+---
 
-### **4. Local IDF Curves (MTO)**
-Using the official **[Ontario MTO IDF dataset](https://idfcurves.mto.gov.on.ca/map_acquisition.shtml)**, rainfall severity is compared against the **24h 2-year storm depth** for the home’s location.
+## 3. 24-Hour Rainfall Forecast
 
-Implemented in `idf_curve_extraction.py`.
+The next 24 hours of precipitation are pulled from the [Open-Meteo GEM seamless model](https://open-meteo.com/en/docs/gem-api) using site latitude and longitude.
 
-### **5. Flood-Risk Scoring Model**
-Three components combine into the final risk score:
+Implemented in `forecast_extraction.py`:
 
-1. **Soil saturation** (0–100): how wet the foundation soil is  
-   (`soil_saturation_component.py`)
+- Hourly precipitation retrieved
+- First 24 hours windowed explicitly
+- Both hourly series and 24-hour total returned
+- Error handling for malformed API responses
 
-2. **Storm severity factor**: ratio of forecast rainfall to local IDF  
-   (`storm_severity.py`)
+---
 
-3. **Site sensitivity**: short-term soil reactivity (ΔS over 1 hour)  
-   (`site_sensitivity.py`)
+## 4. Local Rainfall Context (IDF)
 
-Combined in `risk_model.py`.
+Each site is configured with a **24-hour, 2-year IDF depth** (mm), representing a typical design-storm baseline for the location.
 
-Mapped to categories:
-- **Low**
-- **Moderate**
-- **High**
-- **Severe**
+Forecast rainfall is evaluated **relative to local climate**, rather than using raw depth alone. This allows storm severity to be interpreted consistently across regions.
+
+This value is stored in site configuration and used directly by the risk model.
+
+---
+
+## 5. Flood-Risk Model
+
+Implemented in `risk_model.py`, composed of three interpretable components.
+
+### a) Soil Saturation Component (0–100)
+
+Maps normalized soil saturation to a base risk score.
+
+- Very dry soil → zero risk
+- Gradual increase through typical wet range
+- Accelerated growth near and above saturation
+
+### b) Storm Severity Factor (0–1.5)
+
+Computed as:
+`forecast_24h_mm / IDF_24h_2yr_mm`
+Mapped piecewise so that:
+- Small storms add negligible risk
+- Typical design storms add moderate amplification
+- Severe storms increase amplification but are capped
+
+### c) Site Sensitivity Factor (0–1)
+
+Measures how fast soil saturation has increased in the last hour:
+`ΔS = max(0, S_now − S_1h_ago)`
+This captures how reactive the site is during the current event.
+
+### Final Combination
+`RiskInternal = BaseSoilRisk × (1 + SiteSensitivity × StormSeverity)`
+
+`RiskDisplayed = clamp(RiskInternal, 0–100)`
+
+The internal score may exceed 100 under extreme conditions, but the displayed score is clamped for user clarity.
 
 ---
 
 ## 🧠 System Pipeline
 
-Implemented in `main.py` and orchestrated via `run_pipeline()`:
+Implemented in `main.py` via `run_pipeline()`:
 
-1. Load the most recent soil-moisture batch  
-2. Clean and smooth readings  
-3. Normalize to saturation values  
-4. Compute features (asymmetry, averages, storm data)  
-   (`features.py`)
-5. Calculate flood-risk score  
-6. Output to CSV or send upstream to Firebase  
-7. Mobile app displays risk & alerts to the user
+1. Load site configuration from DynamoDB  
+2. Fetch the two most recent raw sensor payloads  
+3. Apply QC and median smoothing  
+4. Normalize moisture values  
+5. Fetch 24-hour rainfall forecast  
+6. Compute risk components and final score  
+7. Write:
+   - LatestSiteState (current risk snapshot)
+   - MoistureHistory (time-series trend point)
+
+All numeric values are converted to DynamoDB-safe formats.
 
 ---
 
-## 📱 Mobile-App Integration
+## ☁️ AWS Storage Layer
 
-The final system will:
-- Push 15-min risk updates to Firebase  
-- Trigger notifications when risk escalates (e.g., High or Severe)  
-- Provide graphs of soil moisture, radar forecasts, and risk history  
-- Provide homeowners with actionable flood-prevention tips
+Implemented in `aws_storage.py` using DynamoDB tables:
+
+- RawSensorReadings  
+- LatestSiteState  
+- MoistureHistory  
+- SiteConfig  
+
+Includes:
+- Recursive float → Decimal conversion
+- DynamoDB number parsing
+- Time-based queries for historical state
+- Clean separation between raw and derived data
+
+---
+
+## 🔁 Local Backfill and Simulation
+
+The script `run_test_backfill.py` generates **synthetic raw sensor data** for realistic testing and demos.
+
+Features:
+- Configurable time window and interval
+- Deterministic generation via hashing
+- Risk profiles (low, mod, high, sev) controlling baseline wetness
+- Automatic pipeline execution for each generated timestamp
+
+This enables full end-to-end testing **without live hardware**.
+
+---
+
+## 🧪 Testing Strategy
+
+The project includes a comprehensive test suite using `pytest` and `moto`:
+
+- Unit tests for:
+  - Quality control
+  - Normalization
+  - Each risk component
+- Golden-case tests for known scenarios
+- Monotonicity and bounds tests
+- Full end-to-end pipeline tests with mocked AWS and weather APIs
+- AWS storage behavior tests (ordering, conversions, edge cases)
+
+This ensures the model is stable, explainable, and repeatable.
+
+---
+
+## 📱 Mobile App Integration
+
+The pipeline is designed to serve a mobile application that:
+- Displays current flood-risk level
+- Shows recent soil-moisture trends
+- Surfaces forecast rainfall context
+- Explains why risk is elevated using component breakdowns
+
+The backend provides structured, app-ready data.
 
 ---
 
 ## 🏗️ Installation
 
 ```bash
-git clone <your_repo>
-cd home-flood-monitoring-system
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+git clone https://github.com/meah-b/hydro-watch
+cd hydro-watch/script
 pip install -r requirements.txt
 ```
 
----
+--- 
 
 ## ▶️ Running the Pipeline
 ```bash
-Copy code
-python -m src.main
+python -m src.main --site-id <SITE_ID>
 ```
-Outputs:
-
+Optional local backfill:
 ```bash
-data/results/risk_results.csv
+python run_test_backfill.py --site-id <SITE_ID> --risk <RISK_LEVEL>
 ```
 
----
 
-## 📂 Project Structure
-```css
-src/
-  main.py
-  quality_control.py
-  normalization.py
-  features.py
-  risk_model.py
-  utilities/
-    forecast_extraction.py
-    idf_curve_extraction.py
-  risk_components/
-    soil_saturation.py
-    storm_severity.py
-    site_sensitivity.py
-```
-
----
-
-📌 Future Work
-- Integrate real sensor hardware (LoRaWAN / WiFi)
-- Live mobile-app UI with real-time charts
