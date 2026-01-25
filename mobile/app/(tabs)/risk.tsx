@@ -8,7 +8,6 @@ import {
 	View,
 } from 'react-native';
 
-import { useFocusEffect } from '@/.expo/types/router';
 import LoadingScreen from '@/assets/components/screens/loading';
 import {
 	buildInfluenceDesc,
@@ -16,6 +15,8 @@ import {
 } from '@/assets/utilities/buildDescriptions';
 import getLastUpdatedText from '@/assets/utilities/getLastUpdatedText';
 import { getLatestSiteState } from '@/assets/utilities/getLatestSiteState';
+import getSensorStatus from '@/assets/utilities/getSensorStatus';
+import { useFocusEffect } from 'expo-router';
 import RiskGauge from '../../assets/components/graphics/RiskGauge';
 import {
 	buildRiskDrivers,
@@ -81,6 +82,11 @@ export default function Risk() {
 		setRefreshing(false);
 	}, [load]);
 
+	const sensorStatus = useMemo(() => {
+		if (!state?.qc_report) return null;
+		return getSensorStatus(state.qc_report);
+	}, [state]);
+
 	const riskScore = Number((state?.risk_score ?? NaN).toFixed(0));
 	const riskLevel = getRiskLevel(riskScore);
 	const lastUpdatedIso = state?.last_updated_iso;
@@ -112,6 +118,15 @@ export default function Risk() {
 			<LoadingScreen
 				state='error'
 				error={error}
+			/>
+		);
+	}
+
+	if (sensorStatus?.failed) {
+		return (
+			<LoadingScreen
+				state='error'
+				error='Sensor data is unavailable. Risk assessment cannot be performed at this time.'
 			/>
 		);
 	}

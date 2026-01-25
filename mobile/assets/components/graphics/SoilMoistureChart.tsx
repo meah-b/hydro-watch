@@ -12,7 +12,7 @@ import Svg, {
 } from 'react-native-svg';
 
 type Props = {
-	values: number[];
+	moistureValues: number[];
 };
 
 function roundDownToStep(v: number, step: number) {
@@ -26,7 +26,7 @@ function linePath(points: { x: number; y: number }[]) {
 	if (points.length === 0) return '';
 	return points.reduce(
 		(d, p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `${d} L ${p.x} ${p.y}`),
-		''
+		'',
 	);
 }
 
@@ -41,12 +41,12 @@ function areaPath(points: { x: number; y: number }[], bottomY: number) {
 	);
 }
 
-export default function SoilMoistureChartSvg({ values }: Props) {
-	const n = Math.max(2, values.length);
+export default function SoilMoistureChartSvg({ moistureValues }: Props) {
+	const n = Math.max(2, moistureValues.length);
 
 	const width = 280;
 	const height = 120;
-	const padL = 45;
+	const padL = 46;
 	const padT = 15;
 	const padB = 20;
 	const chartOffsetX = -40;
@@ -55,8 +55,8 @@ export default function SoilMoistureChartSvg({ values }: Props) {
 	const plotH = height - padT - padB;
 
 	const { yMin, yMax } = useMemo(() => {
-		const minV = Math.min(...values, 0, 1);
-		const maxV = Math.max(...values, 0, 1);
+		const minV = Math.min(...moistureValues, 0, 1);
+		const maxV = Math.max(...moistureValues, 0, 1);
 
 		const rawMin = minV - 0.8;
 		const rawMax = maxV + 0.8;
@@ -65,21 +65,22 @@ export default function SoilMoistureChartSvg({ values }: Props) {
 			yMin: roundDownToStep(rawMin, 1),
 			yMax: roundUpToStep(rawMax, 1),
 		};
-	}, [values]);
+	}, [moistureValues]);
 
 	const xForIndex = useCallback(
-		(i: number) => padL + chartOffsetX + (i / (values.length - 1)) * plotW,
-		[padL, plotW, values.length, chartOffsetX]
+		(i: number) =>
+			padL + chartOffsetX + (i / (moistureValues.length - 1)) * plotW,
+		[padL, plotW, moistureValues.length, chartOffsetX],
 	);
 
 	const yForValue = useCallback(
 		(v: number) => padT + plotH - ((v - yMin) / (yMax - yMin)) * plotH,
-		[padT, plotH, yMin, yMax]
+		[padT, plotH, yMin, yMax],
 	);
 
 	const points = useMemo(
-		() => values.map((v, i) => ({ x: xForIndex(i), y: yForValue(v) })),
-		[values, xForIndex, yForValue]
+		() => moistureValues.map((v, i) => ({ x: xForIndex(i), y: yForValue(v) })),
+		[moistureValues, xForIndex, yForValue],
 	);
 
 	const yFC = yForValue(0);

@@ -41,6 +41,8 @@ def inv_norm_to_vwc(norm: float, fc: float, sat: float) -> float:
     sat_f = float(sat)
     return fc_f + float(norm) * (sat_f - fc_f)
 
+def corrupt_samples(samples: List[Optional[float]]) -> List[Optional[float]]:
+    return [None for _ in samples]
 
 def risk_profile(risk: str) -> dict:
     if risk == "sev":
@@ -49,7 +51,7 @@ def risk_profile(risk: str) -> dict:
         return {"norm_center": 0.65, "norm_amp": 0.08, "trend": 0.03}
     if risk == "mod":
         return {"norm_center": 0.35, "norm_amp": 0.07, "trend": 0.02}
-    return {"norm_center": 0.08, "norm_amp": 0.06, "trend": 0.01} 
+    return {"norm_center": -0.12, "norm_amp": 0.06, "trend": 0.01} 
 
 
 def make_side_samples(
@@ -68,7 +70,7 @@ def make_side_samples(
             out.append(None)
             continue
 
-        noise = (rand01(s, k) - 0.5) * (0.10 * span)
+        noise = (rand01(s, k) - 0.5) * (0.015 * span)
         v = base + noise
         out.append(round(v, 3))
 
@@ -84,36 +86,46 @@ def build_raw_item(
     fc: float,
     sat: float,
     center_offset: float = 0.0,
+    demo: Optional[str] = None,
 ) -> Dict:
     prof = risk_profile(risk)
 
     frac = idx / max(1, (n_points - 1))
     norm = (
         (prof["norm_center"] + center_offset)
-        + prof["norm_amp"] * math.sin(frac * math.pi)
-        + prof["trend"] * frac
+        + (prof["norm_amp"]*0.25) * math.sin(frac * math.pi)
+        + (prof["trend"] * 0.25) * frac
     )
 
     hi = 1.15 if risk == "sev" else 1.0
-    norm = clamp(norm, 0.0, hi)
+    lo = -0.25 if risk == "low" else 0.0 
+    norm = clamp(norm, lo, hi)
+
 
     span = max(1e-6, float(sat) - float(fc))
     base = inv_norm_to_vwc(norm, fc, sat)
 
-    front_base = base + 0.06 * span * math.sin(idx / 3.0)
-    back_base  = base + 0.05 * span * math.cos(idx / 3.5)
-    left_base  = base + 0.04 * span * math.sin(idx / 4.0 + 1.0)
-    right_base = base + 0.03 * span * math.cos(idx / 4.0 + 1.2)
+    samples = {
+        "front": make_side_samples(site_id, ts_iso, "front", idx, base, span),
+        "back":  make_side_samples(site_id, ts_iso, "back",  idx, base,  span),
+        "left":  make_side_samples(site_id, ts_iso, "left",  idx, base,  span),
+        "right": make_side_samples(site_id, ts_iso, "right", idx, base, span),
+    }
+
+    if demo == "fallback":
+        if idx == (n_points - 1):
+            samples["left"] = corrupt_samples(samples["left"])
+
+    elif demo == "failure":
+        if idx >= (n_points - 2):
+            for k in samples.keys():
+                samples[k] = corrupt_samples(samples[k])
+
 
     return {
         "site_id": site_id,
         "timestamp_iso": ts_iso,
-        "samples": {
-            "front": make_side_samples(site_id, ts_iso, "front", idx, front_base, span),
-            "back":  make_side_samples(site_id, ts_iso, "back",  idx, back_base,  span),
-            "left":  make_side_samples(site_id, ts_iso, "left",  idx, left_base,  span),
-            "right": make_side_samples(site_id, ts_iso, "right", idx, right_base, span),
-        },
+        "samples": samples,
         "source": "local_backfill",
     }
 
@@ -126,10 +138,15 @@ def write_raw_window(
     fc: float,
     sat: float,
     center_offset: float,
+    demo: Optional[str],
 ) -> None:
     for idx, dt in enumerate(times):
         ts_iso = iso(dt)
-        item = build_raw_item(site_id, ts_iso, idx, len(times), risk, fc, sat, center_offset=center_offset)
+        item = build_raw_item(
+            site_id, ts_iso, idx, len(times), risk, fc, sat,
+            center_offset=center_offset,
+            demo=demo,
+        )
         storage.put_raw_payload(item)
 
 
@@ -142,7 +159,8 @@ def run_once_and_get_score(
     sat: float,
     center_offset: float,
 ) -> float:
-    write_raw_window(storage, site_id, times, risk, fc, sat, center_offset=center_offset)
+    write_raw_window(storage, site_id, times, risk, fc, sat, center_offset,
+                     demo=None)
 
     now_iso = iso(times[-1])
     run_pipeline(site_id=site_id, now_iso=now_iso)
@@ -186,19 +204,22 @@ def calibrate_center_offset(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--site-id", required=True)
-
     parser.add_argument(
         "--risk",
         choices=["low", "mod", "high", "sev"],
         default="low",
         help="Controls how wet the generated raw readings are (affects downstream risk).",
     )
-
     parser.add_argument("--hours", type=int, default=6)
     parser.add_argument("--interval-min", type=int, default=15)
-
     parser.add_argument("--calibrate", action="store_true")
     parser.add_argument("--max-iters", type=int, default=8)
+    parser.add_argument(
+        "--demo",
+        choices=["fallback", "failure"],
+        default=None,
+        help="Demo how fallback or failure scenarios affect the pipeline.",
+    )
 
     args = parser.parse_args()
 
@@ -241,7 +262,7 @@ def main():
         )
         print(f"[cal] chosen center_offset={center_offset:+.3f}")
 
-    write_raw_window(storage, site_id, times, args.risk, fc, sat, center_offset=center_offset)
+    write_raw_window(storage, site_id, times, args.risk, fc, sat, center_offset=center_offset, demo=args.demo,)
 
     for dt in times[1:]:
         ts_iso = iso(dt)

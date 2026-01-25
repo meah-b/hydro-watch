@@ -82,12 +82,6 @@ def QC_samples_and_summarize(
     timestamp: Union[str, datetime, pd.Timestamp],
     previous_valid_reading: Optional[Dict[str, List[Any]]] = None,
 ) -> Tuple[Dict[str, float], Dict[str, Any]]:
-    if not current_reading:
-        raise ValueError("QC_samples_and_summarize: no samples provided.")
-
-    ts_ok, ts_fields = _validate_timestamp(timestamp)
-    if not ts_ok:
-        raise ValueError(f"QC_samples_and_summarize: bad timestamp ({ts_fields['timestamp_reason']})")
 
     sensors = ["front", "back", "left", "right"]
 
@@ -98,29 +92,36 @@ def QC_samples_and_summarize(
     fallback_sensors: List[str] = []
     failed_sensors: List[str] = []
 
+    ts_ok, ts_fields = _validate_timestamp(timestamp)
+
+    current_is_usable = bool(ts_ok)
+
     for sensor in sensors:
-        if sensor not in current_reading:
-            missing_sensors.append(sensor)
-            continue
+        invalid_samples_removed[sensor] = 0
+        valid_samples_kept[sensor] = 0
 
-        raw_list = current_reading.get(sensor) or []
+        if current_is_usable and current_reading and sensor in current_reading:
+            raw_list = current_reading.get(sensor) or []
 
-        kept = 0
-        removed = 0
-        valid_vals: List[float] = []
-        for x in raw_list:
-            if _sample_passes_basic_qc(x):
-                kept += 1
-                valid_vals.append(float(x))
-            else:
-                removed += 1
+            kept = 0
+            removed = 0
+            valid_vals: List[float] = []
+            for x in raw_list:
+                if _sample_passes_basic_qc(x):
+                    kept += 1
+                    valid_vals.append(float(x))
+                else:
+                    removed += 1
 
-        invalid_samples_removed[sensor] = removed
-        valid_samples_kept[sensor] = kept
+            invalid_samples_removed[sensor] = removed
+            valid_samples_kept[sensor] = kept
 
-        if valid_vals:
-            cleaned[sensor] = float(median(valid_vals))
-            continue
+            if valid_vals:
+                cleaned[sensor] = float(median(valid_vals))
+                continue
+        else:
+            if not current_reading or sensor not in current_reading:
+                missing_sensors.append(sensor)
 
         prev_list = None
         if previous_valid_reading is not None:
@@ -133,27 +134,33 @@ def QC_samples_and_summarize(
             continue
 
         failed_sensors.append(sensor)
-        raise ValueError(
-            f"QC_samples_and_summarize: sensor '{sensor}' has no valid samples "
-            "and no usable previous_valid_reading fallback."
-        )
-    
-    if missing_sensors:
-        raise ValueError(f"QC_samples_and_summarize: missing sensors: {missing_sensors}")
 
+    used_fallback = (len(fallback_sensors) > 0)
     all_sensors_present = (len(missing_sensors) == 0)
-    all_sensors_normal = all_sensors_present and (len(fallback_sensors) == 0) and (len(failed_sensors) == 0)
+
+    qc_failed = (len(cleaned) != 4)
+
+    all_sensors_normal = (
+        all_sensors_present
+        and len(fallback_sensors) == 0
+        and len(failed_sensors) == 0
+        and ts_ok
+    )
 
     qc_report: Dict[str, Any] = {
-        # **ts_fields,
+        **ts_fields,  
+        "qc_failed": qc_failed,
         "all_sensors_present": all_sensors_present,
         "all_sensors_normal": all_sensors_normal,
+        "used_fallback": used_fallback,
         "missing_sensors": missing_sensors,
         "fallback_sensors": fallback_sensors,
         "failed_sensors": failed_sensors,
         "invalid_samples_removed": invalid_samples_removed,
         "valid_samples_kept": valid_samples_kept,
-        "used_fallback": len(fallback_sensors) > 0,
+        "usable_sensors": list(cleaned.keys()),
+        "usable_sensor_count": len(cleaned),
+        "current_reading_used": ts_ok, 
     }
 
     return cleaned, qc_report

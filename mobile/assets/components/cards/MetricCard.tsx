@@ -8,6 +8,7 @@ interface MetricCardProps {
 	value: string;
 	desc: string;
 	onPress?: () => void;
+	isWarning?: boolean;
 }
 
 interface RiskLevelCardProps {
@@ -32,7 +33,7 @@ export default function SmallMetricCard(props: MetricCardProps) {
 }
 
 export function MediumMetricCard(props: MetricCardProps) {
-	const { title, value, desc, onPress } = props;
+	const { title, value, desc, onPress, isWarning } = props;
 
 	return (
 		<Pressable
@@ -40,6 +41,7 @@ export function MediumMetricCard(props: MetricCardProps) {
 			style={({ pressed }) => [
 				styles.card,
 				onPress ? { opacity: pressed ? 0.6 : 1 } : null,
+				isWarning ? styles.warningCard : null,
 			]}>
 			<Text style={styles.cardTitle}>{title}</Text>
 			<Text style={styles.actionPrimary}>{value}</Text>

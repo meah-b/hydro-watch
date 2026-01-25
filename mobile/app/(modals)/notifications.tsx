@@ -87,27 +87,6 @@ export default function Notifications() {
 			body: 'Soil saturation is elevated and 24h rainfall is trending up. Consider moving valuables off the floor.',
 			timeLabel: '10 min ago',
 		},
-		{
-			id: 'n2',
-			type: 'status',
-			title: 'Sensors reporting normally',
-			body: 'All four sensors returned valid readings on the last pull.',
-			timeLabel: '1 hr ago',
-		},
-		{
-			id: 'n3',
-			type: 'info',
-			title: 'Forecast update',
-			body: 'New Environment Canada hourly forecast was pulled and saved.',
-			timeLabel: 'Today • 9:12 AM',
-		},
-		{
-			id: 'n4',
-			type: 'status',
-			title: 'Background refresh completed',
-			body: 'Moisture history was updated (last 6 hours).',
-			timeLabel: 'Yesterday • 6:40 PM',
-		},
 	]);
 
 	function clearOne(id: string) {

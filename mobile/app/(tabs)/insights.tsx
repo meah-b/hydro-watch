@@ -21,6 +21,7 @@ import {
 	View,
 } from 'react-native';
 
+import getSensorStatus from '@/assets/utilities/getSensorStatus';
 import getSiteConfig from '@/assets/utilities/getSiteConfig';
 import getMoisture6hRows from '@/assets/utilities/getSoilMoistureHistory';
 import ForecastVsIdfBarChart from '../../assets/components/graphics/ForecastVsIdfBarChart';
@@ -54,6 +55,12 @@ function symmetryNoteFromSides(
 	return 'Moisture is consistent around the foundation.';
 }
 
+function clampNormalizedSat(sat: number): number {
+	if (sat < 0) return 0;
+	if (sat > 1) return 1;
+	return sat;
+}
+
 export default function Insights() {
 	const [state, setState] = useState<SiteState | null>(null);
 	const [config, setConfig] = useState<SiteConfig | null>(null);
@@ -61,12 +68,6 @@ export default function Insights() {
 	const [error, setError] = useState<string | null>(null);
 	const [moistureRows, setMoistureRows] = useState<MoistureRow[]>([]);
 	const [refreshing, setRefreshing] = useState(false);
-
-	console.log('Insights render', {
-		loading,
-		hasState: !!state,
-		hasConfig: !!config,
-	});
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -100,6 +101,11 @@ export default function Insights() {
 		setRefreshing(false);
 	}, [load]);
 
+	const sensorStatus = useMemo(() => {
+		if (!state?.qc_report) return null;
+		return getSensorStatus(state.qc_report);
+	}, [state]);
+
 	const moisture6h = useMemo(() => {
 		const values = (moistureRows ?? [])
 			.map((r) => Number(r.max_sat))
@@ -132,15 +138,15 @@ export default function Insights() {
 	}, [scrollTo, sectionY]);
 
 	const start = moisture6h[0] ?? 0;
-	const end = moisture6h[moisture6h.length - 1] ?? start;
+	const end = moisture6h[moisture6h.length - 1] ?? 0;
 	const delta = end - start;
 	const deltaText = `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}%`;
 	const peakText = `${(Math.max(...moisture6h) * 100).toFixed(1)}%`;
 
-	const satFront = state?.sat_front ?? 0;
-	const satBack = state?.sat_back ?? 0;
-	const satLeft = state?.sat_left ?? 0;
-	const satRight = state?.sat_right ?? 0;
+	const satFront = clampNormalizedSat(state?.sat_front ?? 0);
+	const satBack = clampNormalizedSat(state?.sat_back ?? 0);
+	const satLeft = clampNormalizedSat(state?.sat_left ?? 0);
+	const satRight = clampNormalizedSat(state?.sat_right ?? 0);
 
 	const nodes: SensorNodesMap = useMemo(() => {
 		return {
@@ -206,6 +212,15 @@ export default function Insights() {
 		);
 	}
 
+	if (sensorStatus?.failed) {
+		return (
+			<LoadingScreen
+				state='error'
+				error='Sensor data is unavailable. Insights cannot be derived at this time.'
+			/>
+		);
+	}
+
 	return (
 		<LinearGradient
 			start={{ x: 0, y: 0 }}
@@ -246,7 +261,7 @@ export default function Insights() {
 					<Text style={styles.mutedDesc}>
 						Last 6 hours · all sides averaged
 					</Text>
-					<SoilMoistureChartSvg values={moisture6h} />
+					<SoilMoistureChartSvg moistureValues={moisture6h} />
 					<View style={styles.inlineStats}>
 						<View style={styles.statItem}>
 							<Text style={styles.metaLabel}>6h change</Text>

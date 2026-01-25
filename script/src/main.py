@@ -29,14 +29,33 @@ def run_pipeline(site_id: str, now_iso: str):
 
     timestamp = pd.to_datetime(raw_payload["timestamp"])
 
+    forecast_24h_hourly_mm, forecast_24h_total_mm = get_24h_precip(lat, lon)
+    forecast_hourly_list = [float(x) for x in forecast_24h_hourly_mm]
+    forecast_total = float(forecast_24h_total_mm)
+
+
     cleaned_readings, qc_report = QC_samples_and_summarize(
         current_reading=raw_payload["samples"],
         previous_valid_reading=previous_raw_payload["samples"],
         timestamp=timestamp,
     )
 
+    qc_failed = bool(qc_report.get("qc_failed", False))
+    if qc_failed:
+        latest_item = {
+            "site_id": site_id,
+            "last_updated_iso": now_iso,
+            "forecast_24h_hourly_mm": forecast_hourly_list,
+            "forecast_24h_total_mm": forecast_total,
+            "qc_all_sensors_normal": False,
+            "qc_used_fallback": False,
+            "qc_report": qc_report,
+        }
 
-    forecast_24h_hourly_mm, forecast_24h_total_mm = get_24h_precip(lat, lon)
+        storage.put_latest_state(latest_item)
+        return
+
+
 
     saturation = normalize_moisture(cleaned_readings, fc_vwc, sat_vwc)
     max_normalized_saturation = max(saturation.values())
@@ -46,8 +65,7 @@ def run_pipeline(site_id: str, now_iso: str):
                                     forecast_24h_total_mm,
                                     idf_24h_mm)
     
-    forecast_hourly_list = [float(x) for x in forecast_24h_hourly_mm]
-    forecast_total = float(forecast_24h_total_mm)
+    
 
     qc_all_sensors_normal = bool(qc_report.get("all_sensors_normal", False))
     qc_used_fallback = bool(qc_report.get("used_fallback", False))
@@ -55,26 +73,18 @@ def run_pipeline(site_id: str, now_iso: str):
     latest_item = {
         "site_id": site_id,
         "last_updated_iso": now_iso,
-
-        # per-side raw saturation
         "sat_front": float(saturation["front"]),
         "sat_back": float(saturation["back"]),
         "sat_left": float(saturation["left"]),
         "sat_right": float(saturation["right"]),
         "max_sat": float(max_normalized_saturation),
-
-        # forecast
         "forecast_24h_hourly_mm": forecast_hourly_list,
         "forecast_24h_total_mm": forecast_total,
-
-        # risk breakdown
         "base_soil_risk": float(base_soil_risk),
         "storm_factor": float(storm_factor),
         "site_sensitivity_factor": float(site_sensitivity_factor),
         "risk_score_internal": float(risk_score_internal),
         "risk_score": float(risk_score_displayed),
-
-        # QC flags + full report as a MAP
         "qc_all_sensors_normal": qc_all_sensors_normal,
         "qc_used_fallback": qc_used_fallback,
         "qc_report": qc_report, 

@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
 	RefreshControl,
 	ScrollView,
@@ -23,6 +23,12 @@ import classifySymmetryFromSides from '@/assets/utilities/getSiteSymmetryInfo';
 import { SiteState } from '@/config/types';
 import { getRiskLevel } from '../../assets/utilities/riskDerivations';
 import colors from '../../config/theme';
+
+function clampNormalizedSat(sat: number): number {
+	if (sat < 0) return 0;
+	if (sat > 1) return 1;
+	return sat;
+}
 
 export default function Home() {
 	const [state, setState] = useState<SiteState | null>(null);
@@ -54,9 +60,14 @@ export default function Home() {
 		setRefreshing(false);
 	}, [load]);
 
+	const sensorStatus = useMemo(() => {
+		if (!state?.qc_report) return null;
+		return getSensorStatus(state.qc_report);
+	}, [state]);
+
 	const riskScore = Number(state?.risk_score ?? NaN);
 	const riskLevel = getRiskLevel(riskScore);
-	const maxSat = Number(state?.max_sat ?? NaN);
+	const maxSat = clampNormalizedSat(Number(state?.max_sat ?? NaN));
 	const soilMoistureValue = (maxSat * 100).toFixed(1) + '%';
 	const satFront = state?.sat_front ?? 0;
 	const satBack = state?.sat_back ?? 0;
@@ -70,7 +81,6 @@ export default function Home() {
 	]);
 	const forecastTotal = Number(state?.forecast_24h_total_mm ?? NaN);
 	const forecastHourly = (state?.forecast_24h_hourly_mm ?? []) as number[];
-	const sensorStatusValue = getSensorStatus(state?.qc_report);
 	const lastUpdatedIso = state?.last_updated_iso;
 	const lastUpdatedText = getLastUpdatedText(lastUpdatedIso || '');
 
@@ -109,7 +119,7 @@ export default function Home() {
 				}>
 				<LargeMetricCard
 					title='Flood risk'
-					value={riskLevel.toUpperCase()}
+					value={sensorStatus?.failed ? '-' : riskLevel.toUpperCase()}
 					desc='Based on current soil moisture, site sensitivity, and storm factors'
 					onPress={() => router.push('/(tabs)/risk')}
 				/>
@@ -117,7 +127,7 @@ export default function Home() {
 				<View style={styles.twoColRow}>
 					<SmallMetricCard
 						title='Soil moisture'
-						value={soilMoistureValue}
+						value={sensorStatus?.failed ? '-' : soilMoistureValue}
 						desc={`Based on the max site saturation`}
 						onPress={() =>
 							router.push({
@@ -129,7 +139,7 @@ export default function Home() {
 
 					<SmallMetricCard
 						title='Site symmetry'
-						value={siteSymmetryValue}
+						value={sensorStatus?.failed ? '-' : siteSymmetryValue}
 						desc={'Based on side-to-side moisture variation'}
 						onPress={() =>
 							router.push({
@@ -153,9 +163,9 @@ export default function Home() {
 
 				<MediumMetricCard
 					title='Sensor Status'
-					value={sensorStatusValue}
-					desc='Sampling every 15 minutes'
-					onPress={() => {}}
+					value={sensorStatus?.value ?? '_'}
+					desc={sensorStatus?.desc ?? 'Loading sensor status...'}
+					isWarning={state?.qc_report?.qc_failed}
 				/>
 				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
 			</ScrollView>

@@ -91,3 +91,9 @@ export type MoistureRow = {
 };
 
 export type SectionKey = 'foundation' | 'trend' | 'rain';
+
+export type SensorStatus = {
+	value: string;
+	desc: string;
+	failed: boolean;
+};

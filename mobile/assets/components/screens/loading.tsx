@@ -20,11 +20,18 @@ export default function LoadingScreen(props: LoadingScreenProps) {
 				alignItems: 'center',
 				flex: 1,
 				paddingTop: 100,
+				paddingHorizontal: 20,
 			}}>
-			<Text style={{ color: colors.black, fontSize: 18, fontWeight: '700' }}>
+			<Text
+				style={{
+					color: colors.black,
+					fontSize: 18,
+					fontWeight: '700',
+					textAlign: 'center',
+				}}>
 				{props.state === 'loading'
 					? 'Loading site…'
-					: props.error ?? 'No data available'}
+					: (props.error ?? 'No data available')}
 			</Text>
 		</LinearGradient>
 	);
