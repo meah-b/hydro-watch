@@ -78,7 +78,7 @@ def test_qc_marks_failed_sensor_when_no_valid_samples_and_no_fallback():
     cleaned, report = QC_samples_and_summarize(current, ts, previous_valid_reading=None)
 
     assert "front" in report["failed_sensors"]
-    assert report["qc_failed"] is False  
+    assert report["qc_failed"] is True  
     assert "back" in cleaned and "left" in cleaned and "right" in cleaned
     assert "front" not in cleaned
 
@@ -107,7 +107,7 @@ def test_qc_sets_qc_failed_true_if_nothing_usable_in_current_or_prev():
     assert report["usable_sensor_count"] == 0
 
 
-def test_qc_marks_missing_sensor_without_raising():
+def test_qc_marks_missing_sensor_and_fails():
     ts = _now_iso()
 
     current = {
@@ -118,7 +118,7 @@ def test_qc_marks_missing_sensor_without_raising():
 
     cleaned, report = QC_samples_and_summarize(current, ts)
 
-    assert report["qc_failed"] is False 
+    assert report["qc_failed"] is True 
     assert "right" in report["missing_sensors"]
     assert "right" in report["failed_sensors"] 
     assert "front" in cleaned and "back" in cleaned and "left" in cleaned

@@ -5,11 +5,6 @@ jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper', () => ({}), {
 	virtual: true,
 });
 
-jest.mock('expo-router', () => ({
-	router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
-	useLocalSearchParams: jest.fn(() => ({})),
-}));
-
 jest.mock('expo-linear-gradient', () => {
 	const React = require('react');
 	const { View } = require('react-native');
@@ -90,16 +85,24 @@ console.warn = (...args) => {
 };
 
 jest.mock('expo-router', () => {
-	const actual =
-		jest.requireActual < typeof import('expo-router') > 'expo-router';
+	const React = require('react');
 
 	return {
-		...actual,
+		__esModule: true,
+
 		router: {
 			push: jest.fn(),
 			replace: jest.fn(),
 			back: jest.fn(),
 		},
-		useLocalSearchParams: jest.fn(() => ({})),
+
+		useLocalSearchParams: () => ({}),
+
+		useFocusEffect: (effect) => {
+			React.useEffect(() => {
+				const cleanup = effect?.();
+				return cleanup;
+			}, [effect]);
+		},
 	};
 });

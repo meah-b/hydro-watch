@@ -7,6 +7,7 @@ import getSiteConfig from '@/assets/utilities/getSiteConfig';
 import getMoisture6hRows from '@/assets/utilities/getSoilMoistureHistory';
 
 import Insights from '@/app/(tabs)/insights';
+import getSensorStatus from '@/assets/utilities/getSensorStatus';
 import { makeMoistureRows } from '../fixtures/moistureRows';
 import { makeSiteConfig } from '../fixtures/siteConfig';
 import { makeSiteState } from '../fixtures/siteState';
@@ -44,14 +45,28 @@ jest.mock('../../assets/components/graphics/ForecastVsIdfBarChart', () => {
 });
 
 const mockUseLocalSearchParams = jest.fn(() => ({}));
-jest.mock('expo-router', () => ({
-	useLocalSearchParams: () => mockUseLocalSearchParams(),
-}));
+
+jest.mock('expo-router', () => {
+	const React = jest.requireActual('react');
+
+	return {
+		useLocalSearchParams: () => mockUseLocalSearchParams(),
+
+		useFocusEffect: (effect: () => void | (() => void)) => {
+			React.useEffect(() => {
+				const cleanup = effect?.();
+				return cleanup;
+			}, [effect]);
+		},
+	};
+});
 
 jest.mock('@/assets/utilities/getLatestSiteState');
 jest.mock('@/assets/utilities/getSiteConfig');
 jest.mock('@/assets/utilities/getSoilMoistureHistory');
+jest.mock('@/assets/utilities/getSensorStatus');
 
+const mockGetSensorStatus = getSensorStatus as unknown as jest.Mock;
 const mockGetLatestSiteState = getLatestSiteState as jest.Mock;
 const mockGetSiteConfig = getSiteConfig as unknown as jest.Mock;
 const mockGetMoisture6hRows = getMoisture6hRows as unknown as jest.Mock;
@@ -60,6 +75,7 @@ describe('Insights screen', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		mockUseLocalSearchParams.mockReturnValue({});
+		mockGetSensorStatus.mockReturnValue({ failed: false });
 	});
 
 	it('shows loading state initially', () => {
@@ -93,6 +109,23 @@ describe('Insights screen', () => {
 		const { getByText } = render(<Insights />);
 
 		await waitFor(() => expect(getByText('error')).toBeTruthy());
+	});
+
+	it('shows sensor unavailable error when qc report indicates failed', async () => {
+		mockGetSensorStatus.mockReturnValue({ failed: true });
+
+		mockGetLatestSiteState.mockResolvedValue(
+			makeSiteState({
+				qc_report: {} as any,
+			}),
+		);
+		mockGetMoisture6hRows.mockResolvedValue(makeMoistureRows([0.2]));
+		mockGetSiteConfig.mockResolvedValue(makeSiteConfig());
+
+		const { getByText } = render(<Insights />);
+		await waitFor(() =>
+			expect(getByText(/Sensor data is unavailable/i)).toBeTruthy(),
+		);
 	});
 
 	it('renders the three insight sections after load', async () => {

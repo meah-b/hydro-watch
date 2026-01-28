@@ -4,6 +4,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { RefreshControl } from 'react-native';
 
+import getSensorStatus from '@/assets/utilities/getSensorStatus';
 import { router } from 'expo-router';
 import { makeSiteState } from '../fixtures/siteState';
 
@@ -11,10 +12,10 @@ jest.mock('@/assets/utilities/getLatestSiteState', () => ({
 	getLatestSiteState: jest.fn(),
 }));
 
-jest.mock('expo-router', () => ({
-	router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
-	useLocalSearchParams: jest.fn(() => ({})),
-}));
+jest.mock('@/assets/utilities/getSensorStatus');
+
+const mockGetSensorStatus = getSensorStatus as unknown as jest.Mock;
+const mockRouterPush = router.push as unknown as jest.Mock;
 
 jest.mock('@/assets/components/screens/loading', () => {
 	const React = jest.requireActual('react');
@@ -80,11 +81,14 @@ jest.mock('@/assets/components/cards/MetricCard', () => {
 });
 
 const mockGetLatestSiteState = getLatestSiteState as jest.Mock;
-const mockRouterPush = router.push as jest.Mock;
 
 describe('Home screen', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
+
+		mockGetSensorStatus.mockReturnValue({
+			failed: false,
+		});
 	});
 
 	it('shows loading initially', async () => {
@@ -158,7 +162,9 @@ describe('Home screen', () => {
 		expect(getByText('SEVERE')).toBeTruthy();
 	});
 
-	it('sensor status: unavailable when qc_report missing', async () => {
+	it('sensor status: falls back when qc_report missing', async () => {
+		// When qc_report is missing, Home never calls getSensorStatus (sensorStatus becomes null)
+		// and the card falls back to "_" + "Loading sensor status..."
 		mockGetLatestSiteState.mockResolvedValue(
 			makeSiteState({ qc_report: undefined as any }),
 		);
@@ -166,10 +172,18 @@ describe('Home screen', () => {
 		const { getByText } = render(<Home />);
 		await waitFor(() => expect(getByText('Sensor Status')).toBeTruthy());
 
-		expect(getByText('Sensor status unavailable.')).toBeTruthy();
+		expect(getByText('_')).toBeTruthy();
+		expect(getByText('Loading sensor status...')).toBeTruthy();
+		expect(mockGetSensorStatus).not.toHaveBeenCalled();
 	});
 
 	it('sensor status: reporting normally when all sensors present + normal', async () => {
+		mockGetSensorStatus.mockReturnValue({
+			failed: false,
+			value: '4/4',
+			desc: '4/4 sensors reporting normally.',
+		});
+
 		mockGetLatestSiteState.mockResolvedValue(
 			makeSiteState({
 				qc_report: {
@@ -183,10 +197,17 @@ describe('Home screen', () => {
 		const { getByText } = render(<Home />);
 		await waitFor(() => expect(getByText('Sensor Status')).toBeTruthy());
 
+		expect(getByText('4/4')).toBeTruthy();
 		expect(getByText('4/4 sensors reporting normally.')).toBeTruthy();
 	});
 
 	it('sensor status: active but adjusted when all present but not all normal', async () => {
+		mockGetSensorStatus.mockReturnValue({
+			failed: false,
+			value: '4/4',
+			desc: '4/4 sensors active, data adjusted.',
+		});
+
 		mockGetLatestSiteState.mockResolvedValue(
 			makeSiteState({
 				qc_report: {
@@ -201,10 +222,17 @@ describe('Home screen', () => {
 		const { getByText } = render(<Home />);
 		await waitFor(() => expect(getByText('Sensor Status')).toBeTruthy());
 
+		expect(getByText('4/4')).toBeTruthy();
 		expect(getByText(/4\/4 sensors active, data adjusted/i)).toBeTruthy();
 	});
 
 	it('sensor status: shows available count when missing/failed sensors', async () => {
+		mockGetSensorStatus.mockReturnValue({
+			failed: false,
+			value: '3/4',
+			desc: '3/4 sensors available ( 0 missing, 1 failed )',
+		});
+
 		mockGetLatestSiteState.mockResolvedValue(
 			makeSiteState({
 				qc_report: {
@@ -218,6 +246,7 @@ describe('Home screen', () => {
 		const { getByText } = render(<Home />);
 		await waitFor(() => expect(getByText('Sensor Status')).toBeTruthy());
 
+		expect(getByText('3/4')).toBeTruthy();
 		expect(
 			getByText('3/4 sensors available ( 0 missing, 1 failed )'),
 		).toBeTruthy();

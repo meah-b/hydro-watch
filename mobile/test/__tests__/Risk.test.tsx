@@ -4,6 +4,7 @@ import { RefreshControl } from 'react-native';
 
 import Risk from '@/app/(tabs)/risk';
 import { getLatestSiteState } from '@/assets/utilities/getLatestSiteState';
+import getSensorStatus from '@/assets/utilities/getSensorStatus';
 import { makeSiteState } from '../fixtures/siteState';
 
 jest.mock('../../assets/utilities/riskDerivations', () => {
@@ -30,8 +31,17 @@ jest.mock('@/assets/utilities/buildDescriptions', () => ({
 jest.mock('@/assets/utilities/getLatestSiteState');
 const mockGetLatestSiteState = getLatestSiteState as jest.Mock;
 
+jest.mock('@/assets/utilities/getSensorStatus');
+const mockGetSensorStatus = getSensorStatus as unknown as jest.Mock;
+
 describe('Risk screen', () => {
-	beforeEach(() => jest.clearAllMocks());
+	beforeEach(() => {
+		jest.clearAllMocks();
+
+		mockGetSensorStatus.mockReturnValue({
+			failed: false,
+		});
+	});
 
 	it('shows loading state initially', () => {
 		mockGetLatestSiteState.mockReturnValue(new Promise(() => {}));
