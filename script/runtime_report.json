@@ -1,0 +1,27 @@
+{
+  "total_ms": 2276.6290998551995,
+  "stages_ms": {
+    "storage_init": 472.0695000141859,
+    "get_site_config": 731.6638000775129,
+    "get_latest_two_raw_payloads": 65.67839998751879,
+    "ddb_row_to_raw_payload_latest": 0.02319994382560253,
+    "ddb_row_to_raw_payload_prev": 0.00819982960820198,
+    "get_sat_1h_ago": 65.37070008926094,
+    "parse_config": 0.005299923941493034,
+    "parse_timestamp": 1.6989000141620636,
+    "forecast_get_24h_precip": 808.9862000197172,
+    "forecast_parse": 0.002400018274784088,
+    "qc_samples_and_summarize": 0.05830009467899799,
+    "normalize_moisture": 0.003400025889277458,
+    "max_saturation": 0.0010998919606208801,
+    "compute_risk_score": 0.004799803718924522,
+    "build_latest_item": 0.002499902620911598,
+    "ddb_put_latest_state": 72.6676001213491,
+    "ddb_append_moisture_point": 58.347499929368496
+  },
+  "meta": {
+    "site_id": "d4286488-c041-708f-939f-27d6734472e8",
+    "now_iso": "2026-02-04T18:03:32.669736+00:00",
+    "qc_failed": false
+  }
+}
