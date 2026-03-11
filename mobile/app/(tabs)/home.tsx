@@ -124,32 +124,6 @@ export default function Home() {
 					onPress={() => router.push('/(tabs)/risk')}
 				/>
 
-				<View style={styles.twoColRow}>
-					<SmallMetricCard
-						title='Soil moisture'
-						value={sensorStatus?.failed ? '-' : soilMoistureValue}
-						desc={`Based on the max site saturation`}
-						onPress={() =>
-							router.push({
-								pathname: '/(tabs)/insights',
-								params: { scrollTo: 'trend' },
-							})
-						}
-					/>
-
-					<SmallMetricCard
-						title='Site symmetry'
-						value={sensorStatus?.failed ? '-' : siteSymmetryValue}
-						desc={'Based on side-to-side moisture variation'}
-						onPress={() =>
-							router.push({
-								pathname: '/(tabs)/insights',
-								params: { scrollTo: 'foundation' },
-							})
-						}
-					/>
-				</View>
-
 				<ForecastCard
 					total24hMm={forecastTotal}
 					hourlyMm={forecastHourly}
@@ -167,6 +141,33 @@ export default function Home() {
 					desc={sensorStatus?.desc ?? 'Loading sensor status...'}
 					isWarning={state?.qc_report?.qc_failed}
 				/>
+
+				<View style={styles.twoColRow}>
+					<SmallMetricCard
+						title='Soil moisture'
+						value={sensorStatus?.failed ? '-' : soilMoistureValue}
+						desc={`Based on the max site saturation`}
+						onPress={() =>
+							router.push({
+								pathname: '/(tabs)/insights',
+								params: { scrollTo: 'trend' },
+							})
+						}
+					/>
+
+					<SmallMetricCard
+						title='Site symmetry'
+						value={sensorStatus?.failed ? '-' : siteSymmetryValue}
+						desc={'Based on how evenly moisture is distributed'}
+						onPress={() =>
+							router.push({
+								pathname: '/(tabs)/insights',
+								params: { scrollTo: 'foundation' },
+							})
+						}
+					/>
+				</View>
+
 				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
 			</ScrollView>
 		</LinearGradient>

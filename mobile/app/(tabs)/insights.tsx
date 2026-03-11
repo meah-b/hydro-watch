@@ -279,7 +279,7 @@ export default function Insights() {
 					style={styles.card}>
 					<Text style={styles.cardTitle}>Rain intensity context</Text>
 					<Text style={styles.mutedDesc}>
-						Forecast rainfall compared to IDF reference levels.
+						Forecast rainfall compared to IDF reference levels
 					</Text>
 					<View style={styles.barChart}>
 						<ForecastVsIdfBarChart
@@ -287,7 +287,9 @@ export default function Insights() {
 						/>
 					</View>
 					<Text style={styles.mutedDesc}>
-						IDF curves are historical design references used for context only.
+						IDF curves show how intense past storms have been. Comparing current
+						rainfall to these benchmarks helps identify when conditions may be
+						unusually severe.
 					</Text>
 				</View>
 				<Text style={styles.lastUpdated}>{lastUpdatedText}</Text>
